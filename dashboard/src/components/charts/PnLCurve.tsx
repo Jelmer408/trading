@@ -18,34 +18,34 @@ export default function PnLCurve({ data, height = 200 }: PnLCurveProps) {
     const chart = createChart(containerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
-        textColor: "#71717a",
-        fontFamily: "var(--font-geist-mono), monospace",
-        fontSize: 11,
+        textColor: "#333",
+        fontFamily: "JetBrains Mono, monospace",
+        fontSize: 10,
       },
       grid: {
-        vertLines: { visible: false },
-        horzLines: { color: "#1c1c1e" },
+        vertLines: { color: "#111" },
+        horzLines: { color: "#111" },
       },
       width: containerRef.current.clientWidth,
       height,
       rightPriceScale: {
-        borderVisible: false,
+        borderColor: "#1a1a1a",
       },
       timeScale: {
-        borderVisible: false,
+        borderColor: "#1a1a1a",
         timeVisible: true,
       },
       crosshair: {
-        vertLine: { visible: false },
-        horzLine: { color: "#3f3f46", width: 1, style: 2 },
+        vertLine: { color: "#222", width: 1, style: 2 },
+        horzLine: { color: "#222", width: 1, style: 2 },
       },
     });
 
     const series = chart.addSeries(AreaSeries, {
-      lineColor: "#3b82f6",
-      topColor: "#3b82f620",
+      lineColor: "#00ff41",
+      topColor: "rgba(0, 255, 65, 0.08)",
       bottomColor: "transparent",
-      lineWidth: 2,
+      lineWidth: 1,
     });
 
     const chartData = data.map((d) => ({

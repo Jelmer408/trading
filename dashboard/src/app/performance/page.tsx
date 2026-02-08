@@ -1,6 +1,5 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import PnLCurve from "@/components/charts/PnLCurve";
 import { useAccountData, useTrades } from "@/hooks/useRealtimeData";
 
@@ -13,22 +12,15 @@ export default function PerformancePage() {
   const losses = closedTrades.filter((t) => (t.pnl || 0) < 0);
 
   const totalPnl = closedTrades.reduce((s, t) => s + (t.pnl || 0), 0);
-  const avgWin =
-    wins.length > 0
-      ? wins.reduce((s, t) => s + (t.pnl || 0), 0) / wins.length
-      : 0;
-  const avgLoss =
-    losses.length > 0
-      ? losses.reduce((s, t) => s + (t.pnl || 0), 0) / losses.length
-      : 0;
-  const profitFactor =
-    avgLoss !== 0 ? Math.abs(avgWin / avgLoss) : avgWin > 0 ? Infinity : 0;
-  const winRate =
-    closedTrades.length > 0
-      ? (wins.length / closedTrades.length) * 100
-      : 0;
+  const avgWin = wins.length > 0
+    ? wins.reduce((s, t) => s + (t.pnl || 0), 0) / wins.length : 0;
+  const avgLoss = losses.length > 0
+    ? losses.reduce((s, t) => s + (t.pnl || 0), 0) / losses.length : 0;
+  const profitFactor = avgLoss !== 0
+    ? Math.abs(avgWin / avgLoss) : avgWin > 0 ? Infinity : 0;
+  const winRate = closedTrades.length > 0
+    ? (wins.length / closedTrades.length) * 100 : 0;
 
-  // Calculate max drawdown from equity curve
   let maxDrawdown = 0;
   let peak = 0;
   for (const snap of history) {
@@ -37,7 +29,6 @@ export default function PerformancePage() {
     if (dd > maxDrawdown) maxDrawdown = dd;
   }
 
-  // Sharpe ratio approximation (daily snapshots)
   let sharpe = 0;
   if (history.length > 1) {
     const returns = [];
@@ -58,52 +49,50 @@ export default function PerformancePage() {
   }
 
   const metrics = [
-    { label: "Total P&L", value: `$${totalPnl.toFixed(2)}`, color: totalPnl >= 0 ? "text-green-500" : "text-red-500" },
-    { label: "Win Rate", value: `${winRate.toFixed(1)}%`, color: winRate >= 50 ? "text-green-500" : "text-red-500" },
-    { label: "Profit Factor", value: profitFactor === Infinity ? "N/A" : profitFactor.toFixed(2), color: profitFactor >= 1.5 ? "text-green-500" : "text-red-500" },
-    { label: "Sharpe Ratio", value: sharpe.toFixed(2), color: sharpe >= 1 ? "text-green-500" : "text-red-500" },
-    { label: "Max Drawdown", value: `${maxDrawdown.toFixed(1)}%`, color: "text-red-500" },
-    { label: "Avg Win", value: `$${avgWin.toFixed(2)}`, color: "text-green-500" },
-    { label: "Avg Loss", value: `$${avgLoss.toFixed(2)}`, color: "text-red-500" },
-    { label: "Total Trades", value: closedTrades.length.toString(), color: "" },
+    { label: "TOTAL P&L", value: `$${totalPnl.toFixed(2)}`, color: totalPnl >= 0 ? "text-[#00ff41]" : "text-[#ff0040]" },
+    { label: "WIN RATE", value: `${winRate.toFixed(1)}%`, color: winRate >= 50 ? "text-[#00ff41]" : "text-[#ff0040]" },
+    { label: "PROFIT FACTOR", value: profitFactor === Infinity ? "INF" : profitFactor.toFixed(2), color: profitFactor >= 1.5 ? "text-[#00ff41]" : "text-[#ff0040]" },
+    { label: "SHARPE", value: sharpe.toFixed(2), color: sharpe >= 1 ? "text-[#00ff41]" : "text-[#ff0040]" },
+    { label: "MAX DD", value: `${maxDrawdown.toFixed(1)}%`, color: "text-[#ff0040]" },
+    { label: "AVG WIN", value: `$${avgWin.toFixed(2)}`, color: "text-[#00ff41]" },
+    { label: "AVG LOSS", value: `$${avgLoss.toFixed(2)}`, color: "text-[#ff0040]" },
+    { label: "TRADES", value: closedTrades.length.toString(), color: "text-[#ccc]" },
   ];
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Performance</h2>
-        <p className="text-muted-foreground text-sm">
-          Strategy metrics and equity curve
+        <h2 className="text-sm font-bold tracking-[0.1em] text-[#ccc]">METRICS</h2>
+        <p className="text-[10px] text-[#444] tracking-[0.05em]">
+          STRATEGY PERFORMANCE ANALYTICS
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+      {/* Metric grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-[1px] bg-[#1a1a1a] border border-[#1a1a1a]">
         {metrics.map((m) => (
-          <Card key={m.label}>
-            <CardContent className="pt-6">
-              <p className={`text-2xl font-bold font-mono ${m.color}`}>
-                {m.value}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">{m.label}</p>
-            </CardContent>
-          </Card>
+          <div key={m.label} className="bg-[#000] px-4 py-4">
+            <div className="text-[9px] tracking-[0.15em] text-[#444] mb-2">{m.label}</div>
+            <div className={`text-xl font-bold ${m.color}`}>{m.value}</div>
+          </div>
         ))}
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Equity Curve</CardTitle>
-        </CardHeader>
-        <CardContent>
+      {/* Equity Curve */}
+      <div className="border border-[#1a1a1a]">
+        <div className="px-4 py-2 border-b border-[#1a1a1a] bg-[#050505]">
+          <span className="text-[10px] tracking-[0.15em] text-[#666]">EQUITY CURVE</span>
+        </div>
+        <div className="p-2">
           {accountLoading || history.length === 0 ? (
-            <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-              Waiting for data...
+            <div className="h-[350px] flex items-center justify-center text-[11px] text-[#333]">
+              AWAITING DATA...
             </div>
           ) : (
             <PnLCurve data={history} height={350} />
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

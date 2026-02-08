@@ -1,21 +1,17 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import Sidebar from "@/components/layout/Sidebar";
+import TopNav from "@/components/layout/TopNav";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const mono = JetBrains_Mono({
+  variable: "--font-mono",
   subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
-  title: "CandleBot - Autonomous Trading Dashboard",
-  description: "AI-powered candlestick pattern trading system",
+  title: "CANDLEBOT /// CONTROL",
+  description: "Autonomous trading system control panel",
 };
 
 export default function RootLayout({
@@ -24,12 +20,12 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <Sidebar />
-        <main className="md:ml-56 min-h-screen p-4 pt-16 md:p-6">{children}</main>
+    <html lang="en">
+      <body className={mono.variable}>
+        <TopNav />
+        <main className="pt-[88px] px-4 pb-8 max-w-[1400px] mx-auto">
+          {children}
+        </main>
       </body>
     </html>
   );

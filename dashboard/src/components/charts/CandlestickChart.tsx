@@ -53,39 +53,40 @@ const CandlestickChart = forwardRef<CandlestickChartRef, CandlestickChartProps>(
 
       const chart = createChart(chartContainerRef.current, {
         layout: {
-          background: { type: ColorType.Solid, color: "#0a0a0a" },
-          textColor: "#a1a1aa",
-          fontFamily: "var(--font-geist-mono), monospace",
+          background: { type: ColorType.Solid, color: "#000000" },
+          textColor: "#444",
+          fontFamily: "JetBrains Mono, monospace",
+          fontSize: 10,
         },
         grid: {
-          vertLines: { color: "#1c1c1e" },
-          horzLines: { color: "#1c1c1e" },
+          vertLines: { color: "#0a0a0a" },
+          horzLines: { color: "#0a0a0a" },
         },
         width: chartContainerRef.current.clientWidth,
         height,
         crosshair: {
-          vertLine: { color: "#3f3f46", width: 1, style: 2 },
-          horzLine: { color: "#3f3f46", width: 1, style: 2 },
+          vertLine: { color: "#222", width: 1, style: 2 },
+          horzLine: { color: "#222", width: 1, style: 2 },
         },
         timeScale: {
-          borderColor: "#27272a",
+          borderColor: "#1a1a1a",
           timeVisible: true,
           secondsVisible: false,
         },
         rightPriceScale: {
-          borderColor: "#27272a",
+          borderColor: "#1a1a1a",
         },
       });
 
       chartRef.current = chart;
 
       const candleSeries = chart.addSeries(CandlestickSeries, {
-        upColor: "#22c55e",
-        downColor: "#ef4444",
-        borderDownColor: "#ef4444",
-        borderUpColor: "#22c55e",
-        wickDownColor: "#ef4444",
-        wickUpColor: "#22c55e",
+        upColor: "#00ff41",
+        downColor: "#ff0040",
+        borderDownColor: "#ff0040",
+        borderUpColor: "#00ff41",
+        wickDownColor: "#ff004066",
+        wickUpColor: "#00ff4166",
       });
       candleSeriesRef.current = candleSeries;
 
@@ -99,7 +100,6 @@ const CandlestickChart = forwardRef<CandlestickChartRef, CandlestickChartProps>(
         scaleMargins: { top: 0.8, bottom: 0 },
       });
 
-      // Load initial data
       fetchCandles().then((candles) => {
         const candleData = candles.map((c) => ({
           time: (new Date(c.timestamp).getTime() / 1000) as number,
@@ -112,7 +112,7 @@ const CandlestickChart = forwardRef<CandlestickChartRef, CandlestickChartProps>(
         const volumeData = candles.map((c) => ({
           time: (new Date(c.timestamp).getTime() / 1000) as number,
           value: c.volume,
-          color: c.close >= c.open ? "#22c55e40" : "#ef444440",
+          color: c.close >= c.open ? "#00ff4120" : "#ff004020",
         }));
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -123,7 +123,6 @@ const CandlestickChart = forwardRef<CandlestickChartRef, CandlestickChartProps>(
         setLoading(false);
       });
 
-      // Resize handler with disposed guard
       let disposed = false;
       const handleResize = () => {
         if (!disposed && chartContainerRef.current) {
@@ -132,7 +131,6 @@ const CandlestickChart = forwardRef<CandlestickChartRef, CandlestickChartProps>(
       };
       window.addEventListener("resize", handleResize);
 
-      // Real-time updates
       const channel = supabase
         .channel(`candles_${symbol}`)
         .on(
@@ -161,7 +159,7 @@ const CandlestickChart = forwardRef<CandlestickChartRef, CandlestickChartProps>(
             volumeSeries.update({
               time,
               value: c.volume,
-              color: c.close >= c.open ? "#22c55e40" : "#ef444440",
+              color: c.close >= c.open ? "#00ff4120" : "#ff004020",
             } as any);
           }
         )
@@ -178,8 +176,8 @@ const CandlestickChart = forwardRef<CandlestickChartRef, CandlestickChartProps>(
     return (
       <div className="relative">
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0a] z-10">
-            <p className="text-muted-foreground">Loading chart...</p>
+          <div className="absolute inset-0 flex items-center justify-center bg-[#000] z-10">
+            <p className="text-[11px] text-[#333] tracking-[0.1em]">LOADING...</p>
           </div>
         )}
         <div ref={chartContainerRef} />

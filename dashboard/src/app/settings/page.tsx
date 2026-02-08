@@ -1,117 +1,137 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { useBotStatus } from "@/hooks/useBotStatus";
 
-export default function SettingsPage() {
+export default function SystemPage() {
+  const { data: bot, error } = useBotStatus();
+
+  const infra = [
+    { label: "BOT HOST", value: "Fly.io (ewr)", url: "https://trading-symxyw.fly.dev" },
+    { label: "DASHBOARD", value: "Vercel", url: null },
+    { label: "DATABASE", value: "Supabase (PostgreSQL)", url: null },
+    { label: "BROKER", value: "Alpaca Markets", url: null },
+    { label: "AI ENGINE", value: "Google Gemini 2.5 Pro", url: null },
+    { label: "DATA FEED", value: "PlusE Finance + Alpaca WS", url: null },
+  ];
+
+  const riskParams = [
+    { label: "MAX POSITION SIZE", value: "5% of portfolio", env: "MAX_POSITION_PCT" },
+    { label: "MAX CONCURRENT", value: "3 positions", env: "MAX_POSITIONS" },
+    { label: "STOP LOSS", value: "-2%", env: "STOP_LOSS_PCT" },
+    { label: "TAKE PROFIT", value: "+4%", env: "TAKE_PROFIT_PCT" },
+    { label: "DAILY LOSS LIMIT", value: "-3% (halts)", env: "DAILY_LOSS_LIMIT_PCT" },
+    { label: "ORDER TYPE", value: "Limit only", env: "--" },
+  ];
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       <div>
-        <h2 className="text-2xl font-bold tracking-tight">Settings</h2>
-        <p className="text-muted-foreground text-sm">
-          Configure your trading system
+        <h2 className="text-sm font-bold tracking-[0.1em] text-[#ccc]">SYSTEM</h2>
+        <p className="text-[10px] text-[#444] tracking-[0.05em]">
+          INFRASTRUCTURE &amp; CONFIGURATION
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">API Keys</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="text-sm font-medium">Alpaca API Key</label>
-            <p className="text-xs text-muted-foreground mt-1">
-              Set via <code className="bg-muted px-1 py-0.5 rounded">ALPACA_API_KEY</code> environment variable on the bot
-            </p>
+      {/* Bot Connection */}
+      <div className="border border-[#1a1a1a]">
+        <div className="px-4 py-2 border-b border-[#1a1a1a] bg-[#050505] flex items-center justify-between">
+          <span className="text-[10px] tracking-[0.15em] text-[#666]">BOT CONNECTION</span>
+          <div className="flex items-center gap-2">
+            <div
+              className={`w-[6px] h-[6px] ${bot?.status === "online" ? "bg-[#00ff41]" : "bg-[#ff0040]"}`}
+              style={{ animation: "blink 2s ease-in-out infinite" }}
+            />
+            <span className={`text-[10px] ${bot?.status === "online" ? "text-[#00ff41]" : "text-[#ff0040]"}`}>
+              {bot?.status === "online" ? "CONNECTED" : "DISCONNECTED"}
+            </span>
           </div>
-          <Separator />
-          <div>
-            <label className="text-sm font-medium">Supabase</label>
-            <p className="text-xs text-muted-foreground mt-1">
-              Set via <code className="bg-muted px-1 py-0.5 rounded">NEXT_PUBLIC_SUPABASE_URL</code> and{" "}
-              <code className="bg-muted px-1 py-0.5 rounded">NEXT_PUBLIC_SUPABASE_ANON_KEY</code>
-            </p>
-          </div>
-          <Separator />
-          <div>
-            <label className="text-sm font-medium">PlusE Finance</label>
-            <p className="text-xs text-muted-foreground mt-1">
-              Set via <code className="bg-muted px-1 py-0.5 rounded">PLUSE_API_KEY</code> on the bot
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+        <div className="p-0">
+          <table className="w-full text-[11px]">
+            <tbody>
+              <tr className="border-b border-[#0a0a0a]">
+                <td className="px-4 py-2 text-[9px] tracking-[0.12em] text-[#444] w-[140px]">STATUS</td>
+                <td className={`px-4 py-2 ${bot?.status === "online" ? "text-[#00ff41]" : "text-[#ff0040]"}`}>
+                  {bot?.status?.toUpperCase() || "UNKNOWN"}
+                </td>
+              </tr>
+              <tr className="border-b border-[#0a0a0a]">
+                <td className="px-4 py-2 text-[9px] tracking-[0.12em] text-[#444]">UPTIME</td>
+                <td className="px-4 py-2">{bot?.uptime || "--"}</td>
+              </tr>
+              <tr className="border-b border-[#0a0a0a]">
+                <td className="px-4 py-2 text-[9px] tracking-[0.12em] text-[#444]">WATCHLIST</td>
+                <td className="px-4 py-2">{bot?.config.watchlist.join(", ") || "--"}</td>
+              </tr>
+              <tr className="border-b border-[#0a0a0a]">
+                <td className="px-4 py-2 text-[9px] tracking-[0.12em] text-[#444]">LAST ERROR</td>
+                <td className="px-4 py-2 text-[#ff0040]">
+                  {bot?.errors.last_error || "NONE"}
+                </td>
+              </tr>
+              {error && (
+                <tr className="border-b border-[#0a0a0a]">
+                  <td className="px-4 py-2 text-[9px] tracking-[0.12em] text-[#444]">CONN ERROR</td>
+                  <td className="px-4 py-2 text-[#ff0040]">{error}</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Risk Parameters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            {[
-              { label: "Max Position Size", value: "5% of portfolio", env: "MAX_POSITION_PCT" },
-              { label: "Max Concurrent Positions", value: "3", env: "MAX_POSITIONS" },
-              { label: "Stop Loss", value: "-2%", env: "STOP_LOSS_PCT" },
-              { label: "Take Profit", value: "+4%", env: "TAKE_PROFIT_PCT" },
-              { label: "Daily Loss Limit", value: "-3% (halts trading)", env: "DAILY_LOSS_LIMIT_PCT" },
-              { label: "Order Type", value: "Limit orders only", env: "-" },
-            ].map((param) => (
-              <div key={param.label} className="flex justify-between items-center border-b border-border pb-2">
-                <div>
-                  <p className="text-sm font-medium">{param.label}</p>
-                  <p className="text-xs text-muted-foreground">{param.env}</p>
-                </div>
-                <p className="text-sm font-mono">{param.value}</p>
-              </div>
-            ))}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Infrastructure */}
+        <div className="border border-[#1a1a1a]">
+          <div className="px-4 py-2 border-b border-[#1a1a1a] bg-[#050505]">
+            <span className="text-[10px] tracking-[0.15em] text-[#666]">INFRASTRUCTURE</span>
           </div>
-        </CardContent>
-      </Card>
+          <table className="w-full text-[11px]">
+            <tbody>
+              {infra.map((item) => (
+                <tr key={item.label} className="border-b border-[#0a0a0a]">
+                  <td className="px-4 py-2 text-[9px] tracking-[0.12em] text-[#444] w-[140px]">
+                    {item.label}
+                  </td>
+                  <td className="px-4 py-2">
+                    {item.url ? (
+                      <a
+                        href={item.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[#0088ff] hover:text-[#00aaff] transition-colors"
+                      >
+                        {item.value}
+                      </a>
+                    ) : (
+                      item.value
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Watchlist</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground mb-2">
-            Set via <code className="bg-muted px-1 py-0.5 rounded">WATCHLIST</code> env var (comma-separated)
-          </p>
-          <div className="flex flex-wrap gap-2">
-            {["AAPL", "MSFT", "NVDA", "TSLA", "SPY"].map((sym) => (
-              <span
-                key={sym}
-                className="px-3 py-1 bg-muted rounded-md text-sm font-mono"
-              >
-                {sym}
-              </span>
-            ))}
+        {/* Risk Parameters */}
+        <div className="border border-[#1a1a1a]">
+          <div className="px-4 py-2 border-b border-[#1a1a1a] bg-[#050505]">
+            <span className="text-[10px] tracking-[0.15em] text-[#666]">RISK PARAMETERS</span>
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Infrastructure</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm">Trading Bot</span>
-            <span className="text-xs text-muted-foreground">Fly.io</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm">Dashboard</span>
-            <span className="text-xs text-muted-foreground">Vercel (free)</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm">Database</span>
-            <span className="text-xs text-muted-foreground">Supabase (free)</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm">Broker</span>
-            <span className="text-xs text-muted-foreground">Alpaca Paper (free)</span>
-          </div>
-        </CardContent>
-      </Card>
+          <table className="w-full text-[11px]">
+            <tbody>
+              {riskParams.map((item) => (
+                <tr key={item.label} className="border-b border-[#0a0a0a]">
+                  <td className="px-4 py-2 text-[9px] tracking-[0.12em] text-[#444] w-[160px]">
+                    {item.label}
+                  </td>
+                  <td className="px-4 py-2 font-bold">{item.value}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }

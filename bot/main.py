@@ -19,7 +19,7 @@ from bot.strategy.risk_manager import RiskManager
 from bot.strategy.candle_strategy import CandleStrategy
 from bot.strategy.watchlist_manager import update_watchlist
 from bot.execution import position_tracker
-from bot.utils.status_server import start_status_server, update_state, increment_state
+from bot.utils.status_server import start_status_server, update_state, increment_state, push_log
 
 
 # ── Global state ─────────────────────────────────────────────
@@ -64,6 +64,7 @@ async def on_bar(bar: dict) -> None:
 
     increment_state("bars_received")
     update_state(last_bar_time=f"{symbol} @ {timestamp}")
+    push_log(f"BAR {symbol} O={bar['open']:.2f} H={bar['high']:.2f} L={bar['low']:.2f} C={bar['close']:.2f} V={bar['volume']}")
 
     # Run the strategy (pattern detection -> AI -> execution)
     try:
@@ -71,6 +72,7 @@ async def on_bar(bar: dict) -> None:
         if trade:
             log.info(f"Trade executed: {trade}")
             increment_state("trades_placed")
+            push_log(f"TRADE {trade}")
     except Exception as e:
         log.error(f"Strategy error on {symbol}: {e}")
         update_state(last_error=str(e))
@@ -180,7 +182,12 @@ async def watchlist_scan_loop() -> None:
                 except Exception as e:
                     log.warning(f"  Failed to backfill {symbol}: {e}")
 
-            update_state(watchlist=new_watchlist, watchlist_size=len(new_watchlist))
+            update_state(
+                watchlist=new_watchlist,
+                watchlist_size=len(new_watchlist),
+                last_watchlist_scan=datetime.now(timezone.utc).isoformat(),
+            )
+            push_log(f"WATCHLIST SCAN: {len(new_watchlist)} symbols active → {', '.join(new_watchlist)}")
             log.info(f"Active watchlist: {', '.join(new_watchlist)}")
 
         except Exception as e:
