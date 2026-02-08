@@ -308,6 +308,8 @@ def backfill_candles() -> None:
 
 async def main() -> None:
     """Boot the trading bot."""
+    import time
+
     log.info("=" * 60)
     log.info("  Autonomous Candle Trading Bot")
     log.info(f"  Watchlist: {', '.join(config.WATCHLIST)}")
@@ -319,12 +321,27 @@ async def main() -> None:
     signal.signal(signal.SIGINT, _signal_handler)
     signal.signal(signal.SIGTERM, _signal_handler)
 
+    # Start status web server IMMEDIATELY so Fly.io proxy can detect it
+    update_state(
+        started_at=time.time(),
+        watchlist=config.WATCHLIST,
+        timeframe=config.TIMEFRAME,
+        paper=config.ALPACA_PAPER,
+    )
+    await start_status_server(port=8080)
+    log.info("Status page running on port 8080")
+
     # Verify connections
     try:
         account = alpaca.get_account()
         log.info(
             f"Alpaca connected: equity=${account['equity']:,.2f} "
             f"buying_power=${account['buying_power']:,.2f}"
+        )
+        update_state(
+            equity=account["equity"],
+            cash=account["cash"],
+            buying_power=account["buying_power"],
         )
     except Exception as e:
         log.error(f"Alpaca connection failed: {e}")
@@ -336,20 +353,6 @@ async def main() -> None:
     except Exception as e:
         log.error(f"Supabase connection failed: {e}")
         sys.exit(1)
-
-    # Start status web server
-    import time
-    update_state(
-        started_at=time.time(),
-        equity=account["equity"],
-        cash=account["cash"],
-        buying_power=account["buying_power"],
-        watchlist=config.WATCHLIST,
-        timeframe=config.TIMEFRAME,
-        paper=config.ALPACA_PAPER,
-    )
-    await start_status_server(port=8080)
-    log.info("Status page running on port 8080")
 
     # Backfill historical data
     backfill_candles()
