@@ -9,22 +9,23 @@ export const revalidate = 0;
 
 export async function GET() {
   try {
-    // Use HTTPS with the IP but set Host header so Fly proxy routes correctly
-    // For the IP connection we need to use HTTP since the TLS cert won't match
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000);
+    const timeout = setTimeout(() => controller.abort(), 5000);
 
     const resp = await fetch(`http://${BOT_IP}:80/api/status`, {
       headers: { Host: BOT_HOST },
       signal: controller.signal,
       cache: "no-store",
+      redirect: "follow",
     });
 
     clearTimeout(timeout);
 
     if (!resp.ok) {
+      // If redirect to HTTPS failed, try catching the JSON from the response
+      const text = await resp.text().catch(() => "");
       return NextResponse.json(
-        { status: "offline", error: `HTTP ${resp.status}` },
+        { status: "offline", error: `HTTP ${resp.status}`, body: text.slice(0, 200) },
         { status: 502 }
       );
     }
