@@ -211,8 +211,8 @@ export default function OverviewPage() {
           <div className="grid grid-cols-3 gap-[1px] bg-[#161616]">
             {[
               { label: "UPTIME", value: bot?.uptime || "—" },
-              { label: "BARS", value: bot?.activity.bars_received.toLocaleString() || "0" },
-              { label: "TRADES", value: bot?.activity.trades_placed.toLocaleString() || "0" },
+              { label: "BARS", value: bot?.activity?.bars_received?.toLocaleString() || "0" },
+              { label: "TRADES", value: bot?.activity?.trades_placed?.toLocaleString() || "0" },
             ].map((item) => (
               <div key={item.label} className="bg-[#000] px-3 py-2">
                 <div className="text-[8px] tracking-[0.12em] text-[#333]">{item.label}</div>
@@ -460,7 +460,7 @@ export default function OverviewPage() {
         <div className="px-4 py-2 border-b border-[#161616] bg-[#040404] flex items-center justify-between">
           <span className="text-[10px] tracking-[0.1em] text-[#555]">LIVE LOG</span>
           <span className="text-[9px] text-[#2a2a2a]">
-            {bot?.errors.last_error ? (
+            {bot?.errors?.last_error ? (
               <span className="text-[#e5484d]">{bot.errors.last_error.slice(0, 60)}</span>
             ) : (
               "no errors"
