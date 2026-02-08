@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 
-const BOT_STATUS_URL =
-  process.env.NEXT_PUBLIC_BOT_URL || "https://trading-symxyw.fly.dev";
+// Use local API route as proxy (bypasses broken Fly.io DNS)
+const BOT_STATUS_URL = "/api/bot-status";
 const POLL_INTERVAL = 5000; // 5 seconds
 
 export interface BotStatus {
@@ -43,9 +43,9 @@ export function useBotStatus() {
 
   const fetchStatus = useCallback(async () => {
     try {
-      const resp = await fetch(`${BOT_STATUS_URL}/api/status`, {
+      const resp = await fetch(BOT_STATUS_URL, {
         cache: "no-store",
-        signal: AbortSignal.timeout(4000),
+        signal: AbortSignal.timeout(6000),
       });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const json = await resp.json();
