@@ -66,7 +66,7 @@ export default function RedditPage() {
       <div className="grid grid-cols-4 gap-[1px] bg-[#161616]">
         {[
           { label: "SCANS", value: redditScans.length, sub: "RSS + ApeWisdom" },
-          { label: "TICKERS FOUND", value: scannedTickers.length || latestScan?.metadata?.count || "—", sub: "latest scan" },
+          { label: "TICKERS FOUND", value: scannedTickers.length || Number(latestScan?.metadata?.count) || "—", sub: "latest scan" },
           { label: "AI EVALUATED", value: aiEvals.length, sub: "Gemini calls" },
           { label: "DISCOVERED", value: discovered.length, sub: "on watchlist" },
         ].map((item) => (
