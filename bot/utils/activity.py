@@ -88,7 +88,7 @@ async def flush() -> None:
 
 def scan_started(source: str) -> None:
     emit(
-        event_type="scan_start",
+        event_type="scan_started",
         agent="scanner",
         title=f"Scan started: {source}",
         level="info",
@@ -97,12 +97,22 @@ def scan_started(source: str) -> None:
 
 def scan_result(source: str, tickers: list[dict], count: int) -> None:
     top_5 = [t["symbol"] for t in tickers[:5]]
+    # Include full ticker objects with posts for dashboard display
+    ticker_objects = [
+        {
+            "symbol": t["symbol"],
+            "score": t.get("score", 0),
+            "sources": t.get("sources", []),
+            "posts": t.get("posts", [])[:6],  # Cap posts per ticker in metadata
+        }
+        for t in tickers[:25]
+    ]
     emit(
-        event_type=f"scan_{source}",
+        event_type="scan_result",
         agent="scanner",
         title=f"{source.upper()} scan: {count} tickers found",
         detail=f"Top tickers: {', '.join(top_5)}" if top_5 else "No tickers found",
-        metadata={"count": count, "top": top_5, "tickers": [t["symbol"] for t in tickers[:20]]},
+        metadata={"count": count, "top": top_5, "tickers": ticker_objects, "source": source},
         level="info" if count > 0 else "warn",
     )
 

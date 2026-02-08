@@ -15,6 +15,9 @@ export default function PnLCurve({ data, height = 200 }: PnLCurveProps) {
   useEffect(() => {
     if (!containerRef.current || data.length === 0) return;
 
+    // Restore visibility (cleanup of previous effect hides it)
+    containerRef.current.style.display = "";
+
     const chart = createChart(containerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },

@@ -45,7 +45,7 @@ BARE_TICKER_RE = re.compile(r'\b([A-Z]{2,5})\b')
 
 
 async def _scan_subreddit(sub: str) -> list[dict]:
-    """Fetch RSS feed for a subreddit and extract ticker mentions from titles."""
+    """Fetch RSS feed for a subreddit and extract ticker mentions + posts from titles."""
     url = f"https://www.reddit.com/r/{sub}/hot.rss?limit=50"
     headers = {"User-Agent": USER_AGENT}
 
@@ -69,6 +69,8 @@ async def _scan_subreddit(sub: str) -> list[dict]:
     entries = root.findall("atom:entry", ns)
 
     mentions: Counter = Counter()
+    # Map ticker -> list of posts that mention it
+    posts_map: dict[str, list[dict]] = {}
 
     for entry in entries:
         title_el = entry.find("atom:title", ns)
@@ -76,17 +78,38 @@ async def _scan_subreddit(sub: str) -> list[dict]:
             continue
         title = title_el.text
 
+        # Get post link and timestamp
+        link_el = entry.find("atom:link", ns)
+        link = link_el.get("href", "") if link_el is not None else ""
+        updated_el = entry.find("atom:updated", ns)
+        post_time = updated_el.text if updated_el is not None else ""
+
+        post_info = {
+            "title": title,
+            "url": link,
+            "sub": f"r/{sub}",
+            "time": post_time,
+        }
+
+        found_tickers: set[str] = set()
+
         # Extract $TICKER mentions (high confidence)
         for match in TICKER_RE.findall(title):
             t = match.upper()
             if t not in IGNORE and len(t) >= 2:
                 mentions[t] += 3  # $TICKER gets triple weight
+                found_tickers.add(t)
 
         # Extract bare UPPERCASE words (lower confidence)
         for match in BARE_TICKER_RE.findall(title):
             t = match.upper()
             if t not in IGNORE and len(t) >= 3:  # Min 3 chars for bare tickers
                 mentions[t] += 1
+                found_tickers.add(t)
+
+        # Link this post to all tickers it mentions
+        for t in found_tickers:
+            posts_map.setdefault(t, []).append(post_info)
 
     results = []
     for ticker, count in mentions.most_common(30):
@@ -96,6 +119,7 @@ async def _scan_subreddit(sub: str) -> list[dict]:
             "mentions": count,
             "sources": [f"r/{sub}"],
             "source_type": "reddit",
+            "posts": posts_map.get(ticker, [])[:10],  # Max 10 posts per ticker
         })
 
     return results
@@ -160,6 +184,7 @@ async def scan_all_subreddits(
     # Merge all results
     combined: Counter = Counter()
     source_map: dict[str, set[str]] = {}
+    posts_map: dict[str, list[dict]] = {}
 
     for result in raw_results:
         if isinstance(result, Exception):
@@ -169,6 +194,12 @@ async def scan_all_subreddits(
             sym = item["symbol"]
             combined[sym] += item["score"]
             source_map.setdefault(sym, set()).update(item.get("sources", []))
+            # Merge posts, dedup by URL
+            existing_urls = {p["url"] for p in posts_map.get(sym, [])}
+            for post in item.get("posts", []):
+                if post["url"] not in existing_urls:
+                    posts_map.setdefault(sym, []).append(post)
+                    existing_urls.add(post["url"])
 
     # Build ranked list
     results = []
@@ -178,6 +209,7 @@ async def scan_all_subreddits(
             "score": round(score, 2),
             "sources": sorted(source_map.get(ticker, set())),
             "source_type": "reddit",
+            "posts": posts_map.get(ticker, [])[:8],  # Cap at 8 posts per ticker
         })
 
     log.info(

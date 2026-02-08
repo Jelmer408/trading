@@ -134,9 +134,10 @@ async def _ai_evaluate_candidates(candidates: list[dict]) -> list[dict]:
 
 # ── Core Logic ───────────────────────────────────────────────
 
-async def discover_candidates() -> list[dict]:
+async def discover_candidates(current_watchlist: list[str] | None = None) -> list[dict]:
     """
     Run all scanners and merge results into a ranked candidate list.
+    Skips symbols already on the active watchlist to avoid redundant AI calls.
     """
     # Run Reddit and news scans concurrently
     reddit_results, news_results = await asyncio.gather(
@@ -172,15 +173,17 @@ async def discover_candidates() -> list[dict]:
         type_map.setdefault(sym, set()).add("news")
         headlines_map.setdefault(sym, []).extend(item.get("headlines", []))
 
-    # Filter by minimum score and exclude core symbols (they're always included)
-    candidates = []
-    base_symbols = set(config.WATCHLIST) | CORE_SYMBOLS
+    # Skip symbols already on the active watchlist (static + dynamic)
+    already_active = set(config.WATCHLIST) | CORE_SYMBOLS
+    if current_watchlist:
+        already_active |= set(current_watchlist)
 
+    candidates = []
     for sym, score in combined_scores.most_common(MAX_AI_CANDIDATES * 2):
         if score < MIN_DISCOVERY_SCORE:
             break
-        if sym in base_symbols:
-            continue  # Already on watchlist
+        if sym in already_active:
+            continue  # Already on watchlist, no need to re-evaluate
 
         candidates.append({
             "symbol": sym,
@@ -191,8 +194,9 @@ async def discover_candidates() -> list[dict]:
         })
 
     log.info(
-        f"Discovery found {len(candidates)} candidates above threshold "
-        f"(reddit: {len(reddit_results)}, news: {len(news_results)})"
+        f"Discovery found {len(candidates)} NEW candidates above threshold "
+        f"(reddit: {len(reddit_results)}, news: {len(news_results)}, "
+        f"skipped {len(already_active)} already-active symbols)"
     )
 
     return candidates[:MAX_AI_CANDIDATES]
@@ -201,28 +205,34 @@ async def discover_candidates() -> list[dict]:
 async def update_watchlist() -> list[str]:
     """
     Full watchlist update cycle:
-    1. Discover candidates from Reddit + News
-    2. AI-evaluate candidates
-    3. Merge with base watchlist
-    4. Persist to Supabase
-    5. Return the new active watchlist
+    1. Load current active watchlist (preserves previously approved symbols)
+    2. Discover NEW candidates (skips already-active symbols)
+    3. AI-evaluate only new candidates
+    4. Merge with current watchlist
+    5. Persist to Supabase
+    6. Return the updated active watchlist
 
     Returns the updated list of symbols.
     """
     log.info("=" * 40)
     log.info("Starting dynamic watchlist update...")
 
-    # Step 1: Discover
-    candidates = await discover_candidates()
+    # Step 0: Load current active watchlist so we don't re-evaluate existing symbols
+    current_active = get_active_watchlist()
+    log.info(f"Current watchlist: {', '.join(current_active)}")
 
-    # Step 2: AI evaluation (skip if no candidates)
+    # Step 1: Discover only NEW candidates (already-active symbols are skipped)
+    candidates = await discover_candidates(current_watchlist=current_active)
+
+    # Step 2: AI evaluation (skip if no new candidates)
     approved: list[dict] = []
     if candidates:
         approved = await _ai_evaluate_candidates(candidates)
+    else:
+        log.info("No new candidates to evaluate — watchlist unchanged")
 
-    # Step 3: Build new watchlist
-    # Start with base watchlist + core symbols
-    new_watchlist = list(CORE_SYMBOLS | set(config.WATCHLIST))
+    # Step 3: Build new watchlist — start from current active (preserves previous approvals)
+    new_watchlist = list(CORE_SYMBOLS | set(config.WATCHLIST) | set(current_active))
     added_symbols: list[dict] = []
 
     for item in sorted(approved, key=lambda x: x.get("priority", 99)):

@@ -68,6 +68,7 @@ export default function ChartsPage() {
           <span className="text-xs text-[#16a34a] font-medium">LIVE</span>
         </div>
         <CandlestickChart
+          key={`${activeSymbol}-${activeTimeframe}`}
           ref={chartRef}
           symbol={activeSymbol}
           timeframe={activeTimeframe}

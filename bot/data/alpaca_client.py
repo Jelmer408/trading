@@ -203,13 +203,17 @@ def get_historical_bars(
     client = get_data_client()
     tf = TIMEFRAME_MAP.get(timeframe, TIMEFRAME_MAP["5Min"])
 
-    # Calculate start time based on limit and timeframe
+    # Calculate start time — always go back enough calendar days
+    # to cover weekends/holidays (at least 7 days for intraday)
     now = datetime.now(timezone.utc)
     if "Min" in timeframe:
         minutes = int(timeframe.replace("Min", ""))
-        start = now - timedelta(minutes=minutes * limit * 2)
+        # 6.5 trading hours/day, need enough calendar days
+        trading_days_needed = (minutes * limit) / (6.5 * 60) + 1
+        calendar_days = max(7, int(trading_days_needed * 1.6))
+        start = now - timedelta(days=calendar_days)
     elif "Hour" in timeframe:
-        start = now - timedelta(hours=limit * 2)
+        start = now - timedelta(days=max(7, limit // 6 + 3))
     else:
         start = now - timedelta(days=limit * 2)
 
