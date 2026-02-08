@@ -1,12 +1,14 @@
 """
-Reddit scanner for trending stock tickers from r/wallstreetbets, r/stocks, etc.
+Reddit scanner -- extracts stock tickers from subreddit RSS feeds.
 
-Uses aggregation APIs (ApeWisdom, Tradestie) that track Reddit mentions
-without requiring direct Reddit API access. Falls back gracefully.
+Simple, no auth needed. Parses r/wallstreetbets, r/stocks, r/options
+RSS feeds and extracts $TICKER mentions from post titles.
 """
 
+import re
 import asyncio
 from collections import Counter
+from xml.etree import ElementTree
 
 import httpx
 
@@ -15,21 +17,94 @@ from bot.utils import activity
 
 
 USER_AGENT = "CandleBot/1.0 (stock-scanner)"
-TIMEOUT = 20.0
+TIMEOUT = 15.0
 
-# Tickers to ignore (ETFs or common false positives in these APIs)
-IGNORE_TICKERS = {"SPY", "QQQ", "IWM", "DIA", "VOO", "VTI"}
+# Subreddits to scan
+SUBREDDITS = [
+    "wallstreetbets",
+    "stocks",
+    "options",
+    "stockmarket",
+]
+
+# Common false positives (ETFs, common words that look like tickers)
+IGNORE = {
+    "SPY", "QQQ", "IWM", "DIA", "VOO", "VTI", "ETF",
+    "CEO", "IPO", "GDP", "SEC", "FDA", "USA", "API",
+    "IMO", "LOL", "WTF", "FYI", "PSA", "TIL", "ELI",
+    "RIP", "ATH", "ATL", "DD", "YOLO", "HODL", "FOMO",
+    "OTM", "ITM", "ATM", "DTE", "IV", "PM", "AM",
+    "ALL", "FOR", "THE", "ARE", "NOT", "HAS", "HIS",
+    "NEW", "ANY", "CAN", "NOW", "BIG", "OLD", "LOW",
+    "TOP", "TWO", "GO", "SO", "UP", "AI", "OR",
+}
+
+# Regex: $TICKER or standalone 2-5 uppercase letters
+TICKER_RE = re.compile(r'\$([A-Z]{2,5})\b')
+BARE_TICKER_RE = re.compile(r'\b([A-Z]{2,5})\b')
 
 
-# ── ApeWisdom API (tracks Reddit/WSB mentions) ───────────────
+async def _scan_subreddit(sub: str) -> list[dict]:
+    """Fetch RSS feed for a subreddit and extract ticker mentions from titles."""
+    url = f"https://www.reddit.com/r/{sub}/hot.rss?limit=50"
+    headers = {"User-Agent": USER_AGENT}
+
+    try:
+        async with httpx.AsyncClient(timeout=TIMEOUT, follow_redirects=True) as client:
+            resp = await client.get(url, headers=headers)
+            resp.raise_for_status()
+            xml = resp.text
+    except Exception as e:
+        log.warning(f"RSS fetch failed for r/{sub}: {e}")
+        return []
+
+    # Parse Atom XML
+    try:
+        root = ElementTree.fromstring(xml)
+    except ElementTree.ParseError as e:
+        log.warning(f"RSS parse failed for r/{sub}: {e}")
+        return []
+
+    ns = {"atom": "http://www.w3.org/2005/Atom"}
+    entries = root.findall("atom:entry", ns)
+
+    mentions: Counter = Counter()
+
+    for entry in entries:
+        title_el = entry.find("atom:title", ns)
+        if title_el is None or title_el.text is None:
+            continue
+        title = title_el.text
+
+        # Extract $TICKER mentions (high confidence)
+        for match in TICKER_RE.findall(title):
+            t = match.upper()
+            if t not in IGNORE and len(t) >= 2:
+                mentions[t] += 3  # $TICKER gets triple weight
+
+        # Extract bare UPPERCASE words (lower confidence)
+        for match in BARE_TICKER_RE.findall(title):
+            t = match.upper()
+            if t not in IGNORE and len(t) >= 3:  # Min 3 chars for bare tickers
+                mentions[t] += 1
+
+    results = []
+    for ticker, count in mentions.most_common(30):
+        results.append({
+            "symbol": ticker,
+            "score": round(count, 2),
+            "mentions": count,
+            "sources": [f"r/{sub}"],
+            "source_type": "reddit",
+        })
+
+    return results
+
+
+# ── ApeWisdom (backup aggregator) ─────────────────────────────
 
 async def _scan_apewisdom() -> list[dict]:
-    """
-    Fetch trending tickers from ApeWisdom.io.
-    Free public API that tracks r/wallstreetbets mentions.
-
-    Returns: [{"symbol": "NVDA", "mentions": 120, "rank": 1, "upvotes": 5000}]
-    """
+    """Fetch trending tickers from ApeWisdom.io as a secondary source."""
     url = "https://apewisdom.io/api/v1.0/filter/all-stocks/page/1"
     headers = {"User-Agent": USER_AGENT}
 
@@ -41,132 +116,61 @@ async def _scan_apewisdom() -> list[dict]:
 
         results = data.get("results", [])
         tickers = []
-        for item in results[:30]:  # Top 30
+        for item in results[:25]:
             ticker = item.get("ticker", "").upper()
-            if not ticker or ticker in IGNORE_TICKERS:
+            if not ticker or ticker in IGNORE:
                 continue
 
             mentions = item.get("mentions", 0)
             rank = item.get("rank", 99)
-            upvotes = item.get("upvotes", 0)
 
-            # Score based on mentions and rank
-            score = mentions * (1 + upvotes / 1000) / max(rank, 1)
-
+            score = mentions / max(rank, 1)
             tickers.append({
                 "symbol": ticker,
                 "score": round(score, 2),
                 "mentions": mentions,
-                "rank": rank,
-                "sources": ["r/wallstreetbets", "r/stocks"],
+                "sources": ["apewisdom"],
                 "source_type": "reddit",
             })
 
-        log.info(f"ApeWisdom: found {len(tickers)} trending tickers")
+        log.info(f"ApeWisdom: {len(tickers)} tickers")
         return tickers
 
     except Exception as e:
-        log.warning(f"ApeWisdom scan failed: {e}")
-        return []
-
-
-# ── Tradestie API (Reddit sentiment + mentions) ──────────────
-
-async def _scan_tradestie() -> list[dict]:
-    """
-    Fetch trending tickers from Tradestie's Reddit API.
-    Free API that tracks wallstreetbets mentions + sentiment.
-
-    Returns: [{"symbol": "NVDA", "score": 15.0, "sentiment": "Bullish"}]
-    """
-    url = "https://tradestie.com/api/v1/apps/reddit"
-    headers = {"User-Agent": USER_AGENT}
-
-    try:
-        async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-            resp = await client.get(url, headers=headers)
-            resp.raise_for_status()
-            data = resp.json()
-
-        tickers = []
-        for item in data[:30]:
-            ticker = item.get("ticker", "").upper()
-            if not ticker or ticker in IGNORE_TICKERS:
-                continue
-
-            comments = item.get("no_of_comments", 0)
-            sentiment = item.get("sentiment", "Neutral")
-            sentiment_score = item.get("sentiment_score", 0.5)
-
-            # Weight bullish sentiment higher for day trading
-            sentiment_mult = 1.5 if sentiment == "Bullish" else (0.8 if sentiment == "Bearish" else 1.0)
-            score = comments * sentiment_mult * sentiment_score
-
-            tickers.append({
-                "symbol": ticker,
-                "score": round(score, 2),
-                "mentions": comments,
-                "sentiment": sentiment,
-                "sources": ["r/wallstreetbets"],
-                "source_type": "reddit",
-            })
-
-        log.info(f"Tradestie: found {len(tickers)} trending tickers")
-        return tickers
-
-    except Exception as e:
-        log.warning(f"Tradestie scan failed: {e}")
+        log.warning(f"ApeWisdom failed: {e}")
         return []
 
 
 # ── Public API ───────────────────────────────────────────────
 
 async def scan_all_subreddits(
-    limit_per_sub: int = 25,  # kept for API compat, not used
+    limit_per_sub: int = 25,
 ) -> list[dict]:
     """
-    Scan all Reddit-based sources and return ranked ticker list.
+    Scan Reddit RSS feeds + ApeWisdom for trending stock tickers.
 
-    Uses ApeWisdom + Tradestie APIs which aggregate Reddit mentions
-    (r/wallstreetbets, r/stocks, etc.) without needing direct Reddit access.
-
-    Returns list of dicts:
-        [{"symbol": "NVDA", "score": 42.5, "sources": ["r/wallstreetbets"]}]
+    Returns ranked list: [{"symbol": "NVDA", "score": 12, "sources": ["r/wallstreetbets"]}]
     """
-    activity.scan_started("reddit (ApeWisdom + Tradestie)")
+    activity.scan_started("reddit (RSS + ApeWisdom)")
 
-    # Scan both sources concurrently
-    ape_results, trade_results = await asyncio.gather(
-        _scan_apewisdom(),
-        _scan_tradestie(),
-        return_exceptions=True,
-    )
+    # Scan all sources concurrently
+    tasks = [_scan_subreddit(sub) for sub in SUBREDDITS] + [_scan_apewisdom()]
+    raw_results = await asyncio.gather(*tasks, return_exceptions=True)
 
-    if isinstance(ape_results, Exception):
-        log.error(f"ApeWisdom error: {ape_results}")
-        ape_results = []
-    if isinstance(trade_results, Exception):
-        log.error(f"Tradestie error: {trade_results}")
-        trade_results = []
-
-    # Merge scores from both sources
+    # Merge all results
     combined: Counter = Counter()
     source_map: dict[str, set[str]] = {}
-    sentiment_map: dict[str, str] = {}
 
-    for item in ape_results:
-        sym = item["symbol"]
-        combined[sym] += item["score"]
-        source_map.setdefault(sym, set()).update(item.get("sources", []))
+    for result in raw_results:
+        if isinstance(result, Exception):
+            log.error(f"Scanner error: {result}")
+            continue
+        for item in result:
+            sym = item["symbol"]
+            combined[sym] += item["score"]
+            source_map.setdefault(sym, set()).update(item.get("sources", []))
 
-    for item in trade_results:
-        sym = item["symbol"]
-        combined[sym] += item["score"]
-        source_map.setdefault(sym, set()).update(item.get("sources", []))
-        if "sentiment" in item:
-            sentiment_map[sym] = item["sentiment"]
-
-    # Build ranked result list
+    # Build ranked list
     results = []
     for ticker, score in combined.most_common(50):
         results.append({
@@ -174,11 +178,10 @@ async def scan_all_subreddits(
             "score": round(score, 2),
             "sources": sorted(source_map.get(ticker, set())),
             "source_type": "reddit",
-            "sentiment": sentiment_map.get(ticker),
         })
 
     log.info(
-        f"Reddit scan complete: {len(results)} tickers found "
+        f"Reddit scan: {len(results)} tickers "
         f"(top: {', '.join(r['symbol'] for r in results[:5])})"
     )
     activity.scan_result("reddit", results, len(results))
