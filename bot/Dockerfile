@@ -7,4 +7,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . ./bot/
 
-CMD ["python", "-m", "bot.main"]
+# Make entrypoint executable
+RUN chmod +x ./bot/entrypoint.sh
+
+CMD ["./bot/entrypoint.sh"]

@@ -4,7 +4,7 @@ primary_region = "ewr"
 [build]
 
 [processes]
-  bot = "python -m bot.main"
+  bot = "./bot/entrypoint.sh"
 
 [[vm]]
   memory = "512mb"
