@@ -1,0 +1,16 @@
+app = "candlebot"
+primary_region = "ewr"
+
+[build]
+
+[processes]
+  bot = "python -m bot.main"
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+
+[restart]
+  policy = "on-failure"
+  retries = 5
