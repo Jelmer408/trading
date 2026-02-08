@@ -169,7 +169,7 @@ const CandlestickChart = forwardRef<CandlestickChartRef, CandlestickChartProps>(
         disposed = true;
         window.removeEventListener("resize", handleResize);
         supabase.removeChannel(channel);
-        chart.remove();
+        try { chart.remove(); } catch { /* already disposed */ }
       };
     }, [symbol, timeframe, height, fetchCandles]);
 

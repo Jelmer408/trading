@@ -11,18 +11,12 @@ primary_region = "ewr"
   cpu_kind = "shared"
   cpus = 1
 
-[[services]]
+[http_service]
   internal_port = 8080
-  protocol = "tcp"
+  force_https = true
+  auto_stop_machines = "off"
+  auto_start_machines = true
   processes = ["bot"]
-
-  [[services.ports]]
-    port = 80
-    handlers = ["http"]
-
-  [[services.ports]]
-    port = 443
-    handlers = ["tls", "http"]
 
 [checks]
   [checks.health]
