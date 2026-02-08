@@ -327,6 +327,13 @@ async def main() -> None:
         watchlist=config.WATCHLIST,
         timeframe=config.TIMEFRAME,
         paper=config.ALPACA_PAPER,
+        max_position_pct=config.MAX_POSITION_PCT,
+        max_positions=config.MAX_POSITIONS,
+        stop_loss_pct=config.STOP_LOSS_PCT,
+        take_profit_pct=config.TAKE_PROFIT_PCT,
+        daily_loss_limit_pct=config.DAILY_LOSS_LIMIT_PCT,
+        gemini_active=bool(config.GEMINI_API_KEY),
+        claude_active=bool(config.ANTHROPIC_API_KEY),
     )
     await start_status_server(port=8080)
     log.info("Status page running on port 8080")

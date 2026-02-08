@@ -60,11 +60,11 @@ export default function SystemPage() {
             </tr>
             <tr className="border-b border-[#0a0a0a]">
               <td className="px-4 py-2 text-[9px] tracking-[0.1em] text-[#333]">WATCHLIST</td>
-              <td className="px-4 py-2 text-[#888]">{bot?.config.watchlist.join(", ") || "—"}</td>
+              <td className="px-4 py-2 text-[#888]">{bot?.config?.watchlist?.join(", ") || "—"}</td>
             </tr>
             <tr className="border-b border-[#0a0a0a]">
               <td className="px-4 py-2 text-[9px] tracking-[0.1em] text-[#333]">LAST ERROR</td>
-              <td className="px-4 py-2 text-[#e5484d]">{bot?.errors.last_error || "None"}</td>
+              <td className="px-4 py-2 text-[#e5484d]">{bot?.errors?.last_error || "None"}</td>
             </tr>
             {error && (
               <tr className="border-b border-[#0a0a0a]">

@@ -7,9 +7,12 @@ Exposes:
 """
 
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
+from zoneinfo import ZoneInfo
 
 from aiohttp import web
+
+ET = ZoneInfo("America/New_York")
 
 # ── Shared state (updated by the bot) ─────────────────────────
 
@@ -78,6 +81,53 @@ def _uptime_seconds() -> int:
     return int(time.time() - _state["started_at"])
 
 
+def _market_schedule() -> dict:
+    """Calculate market open/close times and next trading window."""
+    now_et = datetime.now(ET)
+    today = now_et.date()
+    weekday = now_et.weekday()  # 0=Mon, 6=Sun
+
+    market_open = now_et.replace(hour=9, minute=30, second=0, microsecond=0)
+    market_close = now_et.replace(hour=16, minute=0, second=0, microsecond=0)
+    pre_market_open = now_et.replace(hour=4, minute=0, second=0, microsecond=0)
+
+    is_weekday = weekday < 5
+    is_market_hours = is_weekday and market_open <= now_et <= market_close
+    is_pre_market = is_weekday and pre_market_open <= now_et < market_open
+
+    # Calculate next open
+    if is_market_hours:
+        next_open = market_open  # already open
+        closes_in = int((market_close - now_et).total_seconds())
+    elif is_weekday and now_et < market_open:
+        next_open = market_open
+        closes_in = None
+    else:
+        # Find next weekday
+        days_ahead = 1
+        next_day = today + timedelta(days=days_ahead)
+        while next_day.weekday() >= 5:  # skip weekend
+            days_ahead += 1
+            next_day = today + timedelta(days=days_ahead)
+        next_open = datetime(next_day.year, next_day.month, next_day.day,
+                            9, 30, tzinfo=ET)
+        closes_in = None
+
+    opens_in = None if is_market_hours else int((next_open - now_et).total_seconds())
+
+    return {
+        "now_et": now_et.strftime("%Y-%m-%d %H:%M:%S ET"),
+        "is_market_open": is_market_hours,
+        "is_pre_market": is_pre_market,
+        "market_open": "09:30 ET",
+        "market_close": "16:00 ET",
+        "opens_in_seconds": max(opens_in, 0) if opens_in is not None else None,
+        "closes_in_seconds": max(closes_in, 0) if closes_in is not None else None,
+        "next_open": next_open.isoformat() if not is_market_hours else None,
+        "trading_days": "Mon-Fri",
+    }
+
+
 def _cors_headers() -> dict[str, str]:
     return {
         "Access-Control-Allow-Origin": "*",
@@ -114,6 +164,56 @@ async def handle_api_status(request: web.Request) -> web.Response:
             "watchlist_size": _state.get("watchlist_size", len(_state["watchlist"])),
             "timeframe": _state["timeframe"],
             "paper": _state["paper"],
+        },
+        "market": _market_schedule(),
+        "strategy": {
+            "name": "Candlestick Pattern + AI",
+            "ai_model": "Gemini 2.5 Pro" if _state.get("gemini_active") else ("Claude Sonnet" if _state.get("claude_active") else "Gemini 2.5 Pro"),
+            "news_model": "Gemini Flash",
+            "timeframe": _state["timeframe"],
+            "min_confidence": 0.6,
+            "min_signal_strength": 0.6,
+            "min_risk_reward": "2:1",
+            "patterns": [
+                "doji", "hammer", "inverted_hammer", "shooting_star",
+                "marubozu", "spinning_top", "engulfing", "harami",
+                "piercing_line", "dark_cloud_cover", "morning_star",
+                "evening_star", "three_white_soldiers", "three_black_crows",
+            ],
+            "indicators": ["RSI", "MACD", "EMA crossover", "Volume", "ATR"],
+            "confirmations": [
+                "Trend alignment", "Volume confirmation", "RSI extremes",
+                "MACD crossover", "EMA crossover", "Support/resistance breakout",
+            ],
+            "data_sources": [
+                "Alpaca real-time bars (WebSocket)",
+                "PlusE Finance analysis",
+                "Reddit RSS (WSB, stocks, options)",
+                "Alpaca news headlines",
+                "ApeWisdom trending",
+            ],
+            "risk": {
+                "max_position_pct": float(_state.get("max_position_pct", 0.05)),
+                "max_positions": int(_state.get("max_positions", 3)),
+                "stop_loss_pct": float(_state.get("stop_loss_pct", 0.02)),
+                "take_profit_pct": float(_state.get("take_profit_pct", 0.04)),
+                "daily_loss_limit_pct": float(_state.get("daily_loss_limit_pct", 0.03)),
+            },
+            "pipeline": [
+                {"step": 1, "name": "Bar received", "desc": "5-min OHLCV candle from Alpaca WebSocket"},
+                {"step": 2, "name": "Pattern detection", "desc": "14 candlestick patterns scanned"},
+                {"step": 3, "name": "Signal scoring", "desc": "Patterns + indicators + price action combined"},
+                {"step": 4, "name": "Risk check", "desc": "Position limits, daily loss limit, buying power"},
+                {"step": 5, "name": "PlusE data", "desc": "Fetch LLM-friendly market analysis"},
+                {"step": 6, "name": "AI evaluation", "desc": "Gemini evaluates signal with full context"},
+                {"step": 7, "name": "Position sizing", "desc": "Calculate shares based on equity %"},
+                {"step": 8, "name": "Execute", "desc": "Place limit order via Alpaca"},
+            ],
+            "scan_intervals": {
+                "watchlist_scan": "15 min",
+                "news_analysis": "10 min",
+                "account_snapshot": "30 sec",
+            },
         },
         "errors": {
             "last_error": _state["last_error"],

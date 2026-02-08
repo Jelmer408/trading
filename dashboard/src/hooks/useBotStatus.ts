@@ -30,6 +30,39 @@ export interface BotStatus {
     timeframe: string;
     paper: boolean;
   };
+  market?: {
+    now_et: string;
+    is_market_open: boolean;
+    is_pre_market: boolean;
+    market_open: string;
+    market_close: string;
+    opens_in_seconds: number | null;
+    closes_in_seconds: number | null;
+    next_open: string | null;
+    trading_days: string;
+  };
+  strategy?: {
+    name: string;
+    ai_model: string;
+    news_model: string;
+    timeframe: string;
+    min_confidence: number;
+    min_signal_strength: number;
+    min_risk_reward: string;
+    patterns: string[];
+    indicators: string[];
+    confirmations: string[];
+    data_sources: string[];
+    risk: {
+      max_position_pct: number;
+      max_positions: number;
+      stop_loss_pct: number;
+      take_profit_pct: number;
+      daily_loss_limit_pct: number;
+    };
+    pipeline: Array<{ step: number; name: string; desc: string }>;
+    scan_intervals: Record<string, string>;
+  };
   errors: {
     last_error: string | null;
   };
