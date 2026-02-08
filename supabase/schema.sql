@@ -137,6 +137,23 @@ CREATE TABLE IF NOT EXISTS watchlist (
 
 CREATE INDEX idx_watchlist_active ON watchlist (active, score DESC);
 
+-- Activity log: full agent pipeline visibility
+CREATE TABLE IF NOT EXISTS activity_log (
+    id          BIGSERIAL PRIMARY KEY,
+    event_type  TEXT        NOT NULL,
+    agent       TEXT        NOT NULL,
+    symbol      TEXT,
+    title       TEXT        NOT NULL,
+    detail      TEXT,
+    metadata    JSONB       NOT NULL DEFAULT '{}',
+    level       TEXT        NOT NULL DEFAULT 'info',
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_activity_log_time ON activity_log (created_at DESC);
+CREATE INDEX idx_activity_log_type ON activity_log (event_type, created_at DESC);
+CREATE INDEX idx_activity_log_agent ON activity_log (agent, created_at DESC);
+
 -- Enable real-time for dashboard subscriptions
 ALTER PUBLICATION supabase_realtime ADD TABLE candles;
 ALTER PUBLICATION supabase_realtime ADD TABLE signals;
@@ -145,3 +162,4 @@ ALTER PUBLICATION supabase_realtime ADD TABLE positions;
 ALTER PUBLICATION supabase_realtime ADD TABLE account_snapshots;
 ALTER PUBLICATION supabase_realtime ADD TABLE news;
 ALTER PUBLICATION supabase_realtime ADD TABLE watchlist;
+ALTER PUBLICATION supabase_realtime ADD TABLE activity_log;

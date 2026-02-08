@@ -84,6 +84,18 @@ export interface NewsItem {
   created_at: string;
 }
 
+export interface ActivityEvent {
+  id: number;
+  event_type: string;
+  agent: string;
+  symbol: string | null;
+  title: string;
+  detail: string | null;
+  metadata: Record<string, unknown>;
+  level: "info" | "warn" | "error" | "success";
+  created_at: string;
+}
+
 export interface WatchlistItem {
   id: number;
   symbol: string;

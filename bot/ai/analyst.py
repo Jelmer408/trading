@@ -10,6 +10,7 @@ from typing import Any
 
 from bot.config import config
 from bot.utils.logger import log
+from bot.utils import activity
 
 
 # ── Provider abstraction ─────────────────────────────────────
@@ -139,6 +140,13 @@ async def evaluate_signal(
 
     prompt = "\n".join(sections)
 
+    activity.ai_request(
+        agent="analyst",
+        symbol=symbol,
+        title=f"Trade evaluation: {signal.get('pattern', 'unknown')} on {symbol}",
+        prompt=prompt,
+    )
+
     try:
         response = await _call_ai(prompt, TRADE_ANALYST_SYSTEM)
 
@@ -152,6 +160,12 @@ async def evaluate_signal(
         log.info(
             f"AI decision for {symbol}: {decision.get('decision', 'unknown')} "
             f"(confidence: {decision.get('confidence', 0)})"
+        )
+        activity.trade_decision(
+            symbol=symbol,
+            decision=decision.get("decision", "skip"),
+            confidence=decision.get("confidence", 0),
+            reasoning=decision.get("reasoning", ""),
         )
         return decision
 

@@ -11,6 +11,7 @@ from collections import Counter
 import httpx
 
 from bot.utils.logger import log
+from bot.utils import activity
 
 
 USER_AGENT = "CandleBot/1.0 (stock-scanner)"
@@ -132,6 +133,8 @@ async def scan_all_subreddits(
     Returns list of dicts:
         [{"symbol": "NVDA", "score": 42.5, "sources": ["r/wallstreetbets"]}]
     """
+    activity.scan_started("reddit (ApeWisdom + Tradestie)")
+
     # Scan both sources concurrently
     ape_results, trade_results = await asyncio.gather(
         _scan_apewisdom(),
@@ -178,4 +181,5 @@ async def scan_all_subreddits(
         f"Reddit scan complete: {len(results)} tickers found "
         f"(top: {', '.join(r['symbol'] for r in results[:5])})"
     )
+    activity.scan_result("reddit", results, len(results))
     return results

@@ -13,6 +13,7 @@ from bot.ai.analyst import evaluate_signal
 from bot.strategy.risk_manager import RiskManager
 from bot.execution import order_manager
 from bot.utils.logger import log
+from bot.utils import activity
 
 
 class CandleStrategy:
@@ -62,6 +63,14 @@ class CandleStrategy:
         log.info(
             f"Actionable signal on {symbol}: {signal['direction']} "
             f"({signal['pattern']}) strength={signal['strength']}"
+        )
+
+        # Log pattern detection
+        activity.pattern_detected(
+            symbol=symbol,
+            pattern=signal["pattern"],
+            direction=signal["direction"],
+            strength=signal["strength"],
         )
 
         # Write signal to DB for dashboard
@@ -145,6 +154,12 @@ class CandleStrategy:
         )
 
         if trade:
+            activity.trade_executed(
+                symbol=symbol,
+                side=direction,
+                qty=quantity,
+                price=current_price,
+            )
             # Store news from PlusE if available
             if pluse_data and pluse_data.get("news_sentiment"):
                 try:

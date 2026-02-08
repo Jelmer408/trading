@@ -9,6 +9,7 @@ import type {
   Signal,
   NewsItem,
   WatchlistItem,
+  ActivityEvent,
 } from "@/lib/types";
 
 // ── Account data ────────────────────────────────────────────
@@ -231,4 +232,43 @@ export function useWatchlist() {
   }, [fetchData]);
 
   return { watchlist, loading };
+}
+
+// ── Activity Feed ────────────────────────────────────────────
+
+export function useActivityFeed(limit = 100) {
+  const [events, setEvents] = useState<ActivityEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = useCallback(async () => {
+    const { data } = await supabase
+      .from("activity_log")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (data) setEvents(data);
+    setLoading(false);
+  }, [limit]);
+
+  useEffect(() => {
+    fetchData();
+
+    const channel = supabase
+      .channel("activity_log")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "activity_log" },
+        (payload) => {
+          const row = payload.new as ActivityEvent;
+          setEvents((prev) => [row, ...prev].slice(0, limit));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchData, limit]);
+
+  return { events, loading };
 }

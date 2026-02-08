@@ -12,6 +12,7 @@ import httpx
 
 from bot.config import config
 from bot.utils.logger import log
+from bot.utils import activity
 
 
 ALPACA_NEWS_URL = "https://data.alpaca.markets/v1beta1/news"
@@ -31,6 +32,8 @@ async def scan_news(
     if not config.ALPACA_API_KEY or not config.ALPACA_SECRET_KEY:
         log.warning("Alpaca keys not set, skipping news scan")
         return []
+
+    activity.scan_started("alpaca_news")
 
     now = datetime.now(timezone.utc)
     start = now - timedelta(hours=hours_back)
@@ -114,4 +117,5 @@ async def scan_news(
         f"News scan complete: {len(results)} tickers found "
         f"(top: {', '.join(r['symbol'] for r in results[:5])})"
     )
+    activity.scan_result("news", results, len(results))
     return results

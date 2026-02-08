@@ -12,12 +12,15 @@ from datetime import datetime, timezone
 
 from bot.config import config
 from bot.utils.logger import log
+from bot.utils import activity
 from bot.data import supabase_client as db
 from bot.data import alpaca_client as alpaca
 from bot.data.alpaca_stream import AlpacaBarStream
+from bot.data import news_scanner
 from bot.strategy.risk_manager import RiskManager
 from bot.strategy.candle_strategy import CandleStrategy
 from bot.strategy.watchlist_manager import update_watchlist
+from bot.ai.news_analyst import analyze_news_batch
 from bot.execution import position_tracker
 from bot.utils.status_server import start_status_server, update_state, increment_state, push_log
 
@@ -192,11 +195,81 @@ async def watchlist_scan_loop() -> None:
 
         except Exception as e:
             log.error(f"Watchlist scan failed: {e}")
+            activity.error("scanner", "Watchlist scan failed", str(e))
             update_state(last_error=f"Watchlist scan: {e}")
+
+        # Flush activity events to Supabase
+        await activity.flush()
 
         # Scan every 15 minutes
         try:
             await asyncio.wait_for(_shutdown.wait(), timeout=900)
+            break
+        except asyncio.TimeoutError:
+            pass
+
+
+# ── News analysis loop (Gemini Flash) ────────────────────────
+
+async def news_analysis_loop() -> None:
+    """Periodically analyze news with Gemini Flash for market intelligence."""
+    # Wait 90s after startup before first analysis
+    try:
+        await asyncio.wait_for(_shutdown.wait(), timeout=90)
+        return
+    except asyncio.TimeoutError:
+        pass
+
+    while not _shutdown.is_set():
+        try:
+            activity.emit(
+                event_type="news_cycle",
+                agent="news_ai",
+                title="Starting news analysis cycle",
+                level="info",
+            )
+            push_log("NEWS AI: Starting Gemini Flash analysis cycle...")
+
+            # Fetch fresh news headlines
+            raw_news = await news_scanner.scan_news(hours_back=6, limit=30)
+
+            # Build headline list for Gemini Flash
+            headlines = []
+            for item in raw_news:
+                sym = item["symbol"]
+                for h in item.get("headlines", []):
+                    headlines.append({
+                        "symbol": sym,
+                        "headline": h,
+                        "source": "alpaca",
+                    })
+
+            if headlines:
+                result = await analyze_news_batch(headlines)
+                if result:
+                    mood = result.get("market_mood", "unknown")
+                    alerts = result.get("alerts", [])
+                    push_log(
+                        f"NEWS AI: {mood.upper()} mood, {len(alerts)} alerts — "
+                        f"{result.get('summary', '')[:100]}"
+                    )
+            else:
+                activity.emit(
+                    event_type="news_cycle",
+                    agent="news_ai",
+                    title="No headlines to analyze",
+                    level="warn",
+                )
+
+            await activity.flush()
+
+        except Exception as e:
+            log.error(f"News analysis loop failed: {e}")
+            activity.error("news_ai", "News analysis cycle failed", str(e))
+
+        # Run every 10 minutes
+        try:
+            await asyncio.wait_for(_shutdown.wait(), timeout=600)
             break
         except asyncio.TimeoutError:
             pass
@@ -290,6 +363,7 @@ async def main() -> None:
         asyncio.create_task(stream.start(), name="bar_stream"),
         asyncio.create_task(snapshot_loop(), name="snapshot_loop"),
         asyncio.create_task(watchlist_scan_loop(), name="watchlist_scan"),
+        asyncio.create_task(news_analysis_loop(), name="news_analysis"),
     ]
 
     log.info("Bot is running. Waiting for bars...")
@@ -298,6 +372,7 @@ async def main() -> None:
     await _shutdown.wait()
     log.info("Shutting down...")
 
+    await activity.flush()
     stream.stop()
     for task in tasks:
         task.cancel()

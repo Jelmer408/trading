@@ -14,6 +14,7 @@ from typing import Any
 
 from bot.config import config
 from bot.utils.logger import log
+from bot.utils import activity
 from bot.data import reddit_scanner
 from bot.data import news_scanner
 from bot.data import supabase_client as db
@@ -88,6 +89,13 @@ async def _ai_evaluate_candidates(candidates: list[dict]) -> list[dict]:
 
     prompt = "\n".join(prompt_parts)
 
+    activity.ai_request(
+        agent="analyst",
+        symbol=None,
+        title=f"Evaluating {len(candidates)} watchlist candidates",
+        prompt=prompt,
+    )
+
     try:
         response = await _call_ai(prompt, WATCHLIST_EVAL_SYSTEM)
 
@@ -103,6 +111,13 @@ async def _ai_evaluate_candidates(candidates: list[dict]) -> list[dict]:
         log.info(
             f"AI approved {len(approved)} of {len(candidates)} candidates: "
             f"{', '.join(a['symbol'] for a in approved)}"
+        )
+        activity.ai_response(
+            agent="analyst",
+            symbol=None,
+            title=f"Approved {len(approved)}/{len(candidates)} candidates",
+            response=response[:1000],
+            metadata={"approved": [a["symbol"] for a in approved]},
         )
         return approved
 
