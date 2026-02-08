@@ -8,6 +8,7 @@ import type {
   AccountSnapshot,
   Signal,
   NewsItem,
+  WatchlistItem,
 } from "@/lib/types";
 
 // ── Account data ────────────────────────────────────────────
@@ -194,4 +195,40 @@ export function useNews(limit = 20) {
   }, [fetchData]);
 
   return { news };
+}
+
+// ── Watchlist ──────────────────────────────────────────────
+
+export function useWatchlist() {
+  const [watchlist, setWatchlist] = useState<WatchlistItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = useCallback(async () => {
+    const { data } = await supabase
+      .from("watchlist")
+      .select("*")
+      .eq("active", true)
+      .order("score", { ascending: false });
+    if (data) setWatchlist(data);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+
+    const channel = supabase
+      .channel("watchlist")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "watchlist" },
+        () => fetchData()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchData]);
+
+  return { watchlist, loading };
 }

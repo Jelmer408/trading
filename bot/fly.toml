@@ -1,4 +1,4 @@
-app = "candlebot"
+app = "trading-symxyw"
 primary_region = "ewr"
 
 [build]
@@ -11,6 +11,27 @@ primary_region = "ewr"
   cpu_kind = "shared"
   cpus = 1
 
-[restart]
+[[services]]
+  internal_port = 8080
+  protocol = "tcp"
+  processes = ["bot"]
+
+  [[services.ports]]
+    port = 80
+    handlers = ["http"]
+
+  [[services.ports]]
+    port = 443
+    handlers = ["tls", "http"]
+
+[checks]
+  [checks.health]
+    type = "http"
+    port = 8080
+    path = "/health"
+    interval = "30s"
+    timeout = "5s"
+
+[[restart]]
   policy = "on-failure"
   retries = 5

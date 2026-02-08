@@ -83,3 +83,15 @@ export interface NewsItem {
   published_at: string | null;
   created_at: string;
 }
+
+export interface WatchlistItem {
+  id: number;
+  symbol: string;
+  source: "base" | "discovered" | "ai_approved";
+  reason: string | null;
+  score: number;
+  discovery_sources: string[];
+  active: boolean;
+  added_at: string;
+  updated_at: string;
+}

@@ -8,3 +8,5 @@ python-dotenv>=1.0.1
 websockets>=14.0
 httpx>=0.28.0
 numpy>=2.0.0
+pytz>=2024.1
+aiohttp>=3.9.0

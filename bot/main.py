@@ -17,7 +17,9 @@ from bot.data import alpaca_client as alpaca
 from bot.data.alpaca_stream import AlpacaBarStream
 from bot.strategy.risk_manager import RiskManager
 from bot.strategy.candle_strategy import CandleStrategy
+from bot.strategy.watchlist_manager import update_watchlist
 from bot.execution import position_tracker
+from bot.utils.status_server import start_status_server, update_state, increment_state
 
 
 # ── Global state ─────────────────────────────────────────────
@@ -57,15 +59,21 @@ async def on_bar(bar: dict) -> None:
         )
     except Exception as e:
         log.error(f"Failed to write candle for {symbol}: {e}")
+        update_state(last_error=str(e))
         return
+
+    increment_state("bars_received")
+    update_state(last_bar_time=f"{symbol} @ {timestamp}")
 
     # Run the strategy (pattern detection -> AI -> execution)
     try:
         trade = await _strategy.on_bar(bar)
         if trade:
             log.info(f"Trade executed: {trade}")
+            increment_state("trades_placed")
     except Exception as e:
         log.error(f"Strategy error on {symbol}: {e}")
+        update_state(last_error=str(e))
 
 
 # ── Account snapshot loop ────────────────────────────────────
@@ -90,6 +98,14 @@ async def snapshot_loop() -> None:
             for pos in positions:
                 db.upsert_position(pos)
 
+            update_state(
+                equity=account["equity"],
+                cash=account["cash"],
+                buying_power=account["buying_power"],
+                day_pnl=account["day_pnl"],
+                open_positions=len(positions),
+            )
+
             log.info(
                 f"Snapshot: equity=${account['equity']:,.2f} "
                 f"cash=${account['cash']:,.2f} "
@@ -98,6 +114,7 @@ async def snapshot_loop() -> None:
             )
         except Exception as e:
             log.error(f"Snapshot failed: {e}")
+            update_state(last_error=str(e))
 
         # Check positions for stop-loss / take-profit hits
         try:
@@ -108,6 +125,71 @@ async def snapshot_loop() -> None:
         # Wait 30 seconds before next check
         try:
             await asyncio.wait_for(_shutdown.wait(), timeout=30)
+            break
+        except asyncio.TimeoutError:
+            pass
+
+
+# ── Dynamic watchlist scan loop ──────────────────────────────
+
+_stream_ref: AlpacaBarStream | None = None
+
+
+async def watchlist_scan_loop() -> None:
+    """Periodically scan Reddit + News for trending stocks and update watchlist."""
+    global _stream_ref
+
+    # Wait a bit after startup before first scan
+    try:
+        await asyncio.wait_for(_shutdown.wait(), timeout=60)
+        return
+    except asyncio.TimeoutError:
+        pass
+
+    while not _shutdown.is_set():
+        try:
+            new_watchlist = await update_watchlist()
+
+            # Update the stream subscriptions if watchlist changed
+            if _stream_ref:
+                _stream_ref.update_symbols(new_watchlist)
+
+            # Backfill candles for any newly added symbols
+            current_symbols = set(config.WATCHLIST)
+            new_symbols = set(new_watchlist) - current_symbols
+            for symbol in new_symbols:
+                try:
+                    bars = alpaca.get_historical_bars(
+                        symbol=symbol,
+                        timeframe=config.TIMEFRAME,
+                        limit=100,
+                    )
+                    for bar in bars:
+                        db.upsert_candle(
+                            symbol=symbol,
+                            timeframe=config.TIMEFRAME,
+                            timestamp=bar["timestamp"],
+                            open_=bar["open"],
+                            high=bar["high"],
+                            low=bar["low"],
+                            close=bar["close"],
+                            volume=bar["volume"],
+                            vwap=bar.get("vwap"),
+                        )
+                    log.info(f"  Backfilled {len(bars)} candles for new symbol {symbol}")
+                except Exception as e:
+                    log.warning(f"  Failed to backfill {symbol}: {e}")
+
+            update_state(watchlist=new_watchlist, watchlist_size=len(new_watchlist))
+            log.info(f"Active watchlist: {', '.join(new_watchlist)}")
+
+        except Exception as e:
+            log.error(f"Watchlist scan failed: {e}")
+            update_state(last_error=f"Watchlist scan: {e}")
+
+        # Scan every 15 minutes
+        try:
+            await asyncio.wait_for(_shutdown.wait(), timeout=900)
             break
         except asyncio.TimeoutError:
             pass
@@ -175,15 +257,32 @@ async def main() -> None:
         log.error(f"Supabase connection failed: {e}")
         sys.exit(1)
 
+    # Start status web server
+    import time
+    update_state(
+        started_at=time.time(),
+        equity=account["equity"],
+        cash=account["cash"],
+        buying_power=account["buying_power"],
+        watchlist=config.WATCHLIST,
+        timeframe=config.TIMEFRAME,
+        paper=config.ALPACA_PAPER,
+    )
+    await start_status_server(port=8080)
+    log.info("Status page running on port 8080")
+
     # Backfill historical data
     backfill_candles()
 
     # Start background tasks
+    global _stream_ref
     stream = AlpacaBarStream(symbols=config.WATCHLIST, on_bar=on_bar)
+    _stream_ref = stream
 
     tasks = [
         asyncio.create_task(stream.start(), name="bar_stream"),
         asyncio.create_task(snapshot_loop(), name="snapshot_loop"),
+        asyncio.create_task(watchlist_scan_loop(), name="watchlist_scan"),
     ]
 
     log.info("Bot is running. Waiting for bars...")

@@ -4,6 +4,7 @@ import AccountCard from "@/components/dashboard/AccountCard";
 import PositionsTable from "@/components/dashboard/PositionsTable";
 import TradesFeed from "@/components/dashboard/TradesFeed";
 import SignalFeed from "@/components/dashboard/SignalFeed";
+import WatchlistCard from "@/components/dashboard/WatchlistCard";
 import PnLCurve from "@/components/charts/PnLCurve";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -11,6 +12,7 @@ import {
   usePositions,
   useTrades,
   useSignals,
+  useWatchlist,
 } from "@/hooks/useRealtimeData";
 
 export default function OverviewPage() {
@@ -18,6 +20,7 @@ export default function OverviewPage() {
   const { positions, loading: posLoading } = usePositions();
   const { trades, loading: tradesLoading } = useTrades(20);
   const { signals } = useSignals(10);
+  const { watchlist, loading: watchlistLoading } = useWatchlist();
 
   return (
     <div className="space-y-6">
@@ -50,7 +53,10 @@ export default function OverviewPage() {
         <TradesFeed trades={trades} loading={tradesLoading} />
       </div>
 
-      <SignalFeed signals={signals} />
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <SignalFeed signals={signals} />
+        <WatchlistCard watchlist={watchlist} loading={watchlistLoading} />
+      </div>
     </div>
   );
 }

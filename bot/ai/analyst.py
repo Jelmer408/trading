@@ -34,7 +34,7 @@ async def _call_gemini(prompt: str, system: str) -> str:
 
     client = genai.Client(api_key=config.GEMINI_API_KEY)
     response = await client.aio.models.generate_content(
-        model="gemini-2.0-flash",
+        model="gemini-2.5-pro-preview-05-06",
         contents=f"{system}\n\n{prompt}",
     )
     return response.text
