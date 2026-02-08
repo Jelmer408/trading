@@ -49,41 +49,39 @@ export default function PerformancePage() {
   }
 
   const metrics = [
-    { label: "TOTAL P&L", value: `$${totalPnl.toFixed(2)}`, color: totalPnl >= 0 ? "text-[#3fcf6d]" : "text-[#e5484d]" },
-    { label: "WIN RATE", value: `${winRate.toFixed(1)}%`, color: "text-[#e8e8e8]" },
-    { label: "PROFIT FACTOR", value: profitFactor === Infinity ? "∞" : profitFactor.toFixed(2), color: "text-[#e8e8e8]" },
-    { label: "SHARPE", value: sharpe.toFixed(2), color: "text-[#e8e8e8]" },
-    { label: "MAX DD", value: `${maxDrawdown.toFixed(1)}%`, color: "text-[#e5484d]" },
-    { label: "AVG WIN", value: `$${avgWin.toFixed(2)}`, color: "text-[#3fcf6d]" },
-    { label: "AVG LOSS", value: `$${avgLoss.toFixed(2)}`, color: "text-[#e5484d]" },
-    { label: "TRADES", value: closedTrades.length.toString(), color: "text-[#e8e8e8]" },
+    { label: "Total P&L", value: `$${totalPnl.toFixed(2)}`, color: totalPnl >= 0 ? "text-[#16a34a]" : "text-[#dc2626]" },
+    { label: "Win Rate", value: `${winRate.toFixed(1)}%`, color: "text-[#111]" },
+    { label: "Profit Factor", value: profitFactor === Infinity ? "∞" : profitFactor.toFixed(2), color: "text-[#111]" },
+    { label: "Sharpe", value: sharpe.toFixed(2), color: "text-[#111]" },
+    { label: "Max Drawdown", value: `${maxDrawdown.toFixed(1)}%`, color: "text-[#dc2626]" },
+    { label: "Avg Win", value: `$${avgWin.toFixed(2)}`, color: "text-[#16a34a]" },
+    { label: "Avg Loss", value: `$${avgLoss.toFixed(2)}`, color: "text-[#dc2626]" },
+    { label: "Trades", value: closedTrades.length.toString(), color: "text-[#111]" },
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div>
-        <h2 className="text-sm font-bold tracking-[0.08em] text-[#e8e8e8]">Metrics</h2>
-        <p className="text-[10px] text-[#333] tracking-[0.04em]">
-          Strategy performance analytics
-        </p>
+        <h2 className="text-lg font-bold text-[#111]">Metrics</h2>
+        <p className="text-sm text-[#999]">Strategy performance analytics</p>
       </div>
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-[1px] bg-[#161616] border border-[#161616]">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {metrics.map((m) => (
-          <div key={m.label} className="bg-[#000] px-4 py-4">
-            <div className="text-[9px] tracking-[0.1em] text-[#333] mb-2">{m.label}</div>
+          <div key={m.label} className="rounded-lg border border-[#e5e5e5] p-4">
+            <div className="text-xs text-[#999] mb-1">{m.label}</div>
             <div className={`text-xl font-bold ${m.color}`}>{m.value}</div>
           </div>
         ))}
       </div>
 
-      <div className="border border-[#161616]">
-        <div className="px-4 py-2 border-b border-[#161616] bg-[#040404]">
-          <span className="text-[10px] tracking-[0.1em] text-[#555]">EQUITY CURVE</span>
+      <div className="rounded-lg border border-[#e5e5e5]">
+        <div className="px-5 py-3 border-b border-[#f0f0f0] bg-[#fafafa]">
+          <span className="text-xs font-medium text-[#999] uppercase tracking-wide">Equity Curve</span>
         </div>
-        <div className="p-2">
+        <div className="p-3">
           {accountLoading || history.length === 0 ? (
-            <div className="h-[350px] flex items-center justify-center text-[11px] text-[#1a1a1a]">
+            <div className="h-[350px] flex items-center justify-center text-sm text-[#ccc]">
               Awaiting data...
             </div>
           ) : (

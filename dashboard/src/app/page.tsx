@@ -13,16 +13,18 @@ import {
 import PnLCurve from "@/components/charts/PnLCurve";
 import type { ActivityEvent } from "@/lib/types";
 
+// ── Helpers ──────────────────────────────────────────
+
 function formatMoney(val: number) {
   return `$${val.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 function timeAgo(dateStr: string) {
   const sec = (Date.now() - new Date(dateStr).getTime()) / 1000;
-  if (sec < 60) return `${Math.floor(sec)}s`;
-  if (sec < 3600) return `${Math.floor(sec / 60)}m`;
-  if (sec < 86400) return `${Math.floor(sec / 3600)}h`;
-  return `${Math.floor(sec / 86400)}d`;
+  if (sec < 60) return `${Math.floor(sec)}s ago`;
+  if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
+  return `${Math.floor(sec / 86400)}d ago`;
 }
 
 function formatCountdown(totalSeconds: number | null | undefined): string {
@@ -37,9 +39,7 @@ function formatCountdown(totalSeconds: number | null | undefined): string {
 
 function useCountdown(seconds: number | null | undefined) {
   const [remaining, setRemaining] = useState(seconds ?? null);
-  useEffect(() => {
-    setRemaining(seconds ?? null);
-  }, [seconds]);
+  useEffect(() => { setRemaining(seconds ?? null); }, [seconds]);
   useEffect(() => {
     if (remaining == null || remaining <= 0) return;
     const timer = setInterval(() => setRemaining((r) => (r != null && r > 0 ? r - 1 : 0)), 1000);
@@ -47,310 +47,6 @@ function useCountdown(seconds: number | null | undefined) {
   }, [remaining]);
   return remaining;
 }
-
-// ── Market & Strategy Panel ──────────────────────────
-
-function MarketAndStrategy({ bot }: { bot: ReturnType<typeof useBotStatus>["data"] }) {
-  const market = bot?.market;
-  const strategy = bot?.strategy;
-  const opensIn = useCountdown(market?.opens_in_seconds);
-  const closesIn = useCountdown(market?.closes_in_seconds);
-
-  const isOpen = market?.is_market_open ?? false;
-  const isPreMarket = market?.is_pre_market ?? false;
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-      {/* Market clock */}
-      <div className="border border-[#161616]">
-        <div className="px-4 py-2 border-b border-[#161616] bg-[#040404] flex items-center justify-between">
-          <span className="text-[10px] tracking-[0.1em] text-[#555]">MARKET</span>
-          <span className={`text-[10px] tracking-[0.1em] ${
-            isOpen ? "text-[#3fcf6d]" : isPreMarket ? "text-[#e5a63f]" : "text-[#e5484d]"
-          }`}>
-            {isOpen ? "OPEN" : isPreMarket ? "PRE-MARKET" : "CLOSED"}
-          </span>
-        </div>
-        <div className="px-4 py-3 space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-[9px] tracking-[0.1em] text-[#333]">
-              {isOpen ? "CLOSES IN" : "OPENS IN"}
-            </span>
-            <span className="text-lg font-bold text-[#e8e8e8] tabular-nums">
-              {isOpen ? formatCountdown(closesIn) : formatCountdown(opensIn)}
-            </span>
-          </div>
-          <div className="grid grid-cols-2 gap-[1px] bg-[#161616]">
-            <div className="bg-[#000] px-2 py-1.5">
-              <div className="text-[8px] tracking-[0.12em] text-[#333]">HOURS</div>
-              <div className="text-[11px] text-[#888]">{market?.market_open ?? "09:30"} – {market?.market_close ?? "16:00"}</div>
-            </div>
-            <div className="bg-[#000] px-2 py-1.5">
-              <div className="text-[8px] tracking-[0.12em] text-[#333]">DAYS</div>
-              <div className="text-[11px] text-[#888]">{market?.trading_days ?? "Mon-Fri"}</div>
-            </div>
-          </div>
-          {market?.now_et && (
-            <div className="text-[9px] text-[#2a2a2a]">
-              {market.now_et}
-            </div>
-          )}
-          <div className={`text-[10px] px-2 py-1.5 border ${
-            isOpen
-              ? "border-[#162a1d] text-[#3fcf6d] bg-[#050d08]"
-              : "border-[#1a1a1a] text-[#555] bg-[#050505]"
-          }`}>
-            {isOpen
-              ? "Bot is actively scanning bars and executing trades"
-              : isPreMarket
-                ? "Pre-market — scanning watchlist & loading data"
-                : "Market closed — scanner still running on schedule"
-            }
-          </div>
-        </div>
-      </div>
-
-      {/* Decision pipeline */}
-      <div className="border border-[#161616]">
-        <div className="px-4 py-2 border-b border-[#161616] bg-[#040404] flex items-center justify-between">
-          <span className="text-[10px] tracking-[0.1em] text-[#555]">DECISION PIPELINE</span>
-          <span className="text-[9px] text-[#2a2a2a]">per bar</span>
-        </div>
-        <div className="p-3 space-y-0">
-          {(strategy?.pipeline ?? [
-            { step: 1, name: "Bar received", desc: "5-min candle from WebSocket" },
-            { step: 2, name: "Pattern detection", desc: "14 candlestick patterns" },
-            { step: 3, name: "Signal scoring", desc: "Patterns + indicators combined" },
-            { step: 4, name: "Risk check", desc: "Position & daily loss limits" },
-            { step: 5, name: "PlusE data", desc: "LLM-friendly market context" },
-            { step: 6, name: "AI evaluation", desc: "Gemini evaluates signal" },
-            { step: 7, name: "Position sizing", desc: "Shares from equity %" },
-            { step: 8, name: "Execute", desc: "Limit order via Alpaca" },
-          ]).map((p, i) => (
-            <div key={p.step} className="flex items-start gap-2 py-1.5">
-              <div className="flex flex-col items-center">
-                <div className="w-[18px] h-[18px] flex items-center justify-center text-[9px] border border-[#1a1a1a] text-[#555] bg-[#050505] shrink-0">
-                  {p.step}
-                </div>
-                {i < 7 && <div className="w-[1px] h-[8px] bg-[#111]" />}
-              </div>
-              <div className="min-w-0 pt-0.5">
-                <div className="text-[10px] text-[#888]">{p.name}</div>
-                <div className="text-[9px] text-[#333]">{p.desc}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Strategy info */}
-      <div className="border border-[#161616]">
-        <div className="px-4 py-2 border-b border-[#161616] bg-[#040404]">
-          <span className="text-[10px] tracking-[0.1em] text-[#555]">STRATEGY</span>
-        </div>
-        <div className="p-3 space-y-3">
-          <div>
-            <div className="text-[8px] tracking-[0.12em] text-[#333] mb-1">AI MODEL</div>
-            <div className="text-[11px] text-[#e8e8e8]">{strategy?.ai_model ?? "Gemini 2.5 Pro"}</div>
-            <div className="text-[9px] text-[#333]">News: {strategy?.news_model ?? "Gemini Flash"}</div>
-          </div>
-          <div>
-            <div className="text-[8px] tracking-[0.12em] text-[#333] mb-1">THRESHOLDS</div>
-            <div className="grid grid-cols-2 gap-1 text-[10px]">
-              <span className="text-[#555]">Confidence</span>
-              <span className="text-[#888] text-right">≥ {((strategy?.min_confidence ?? 0.6) * 100).toFixed(0)}%</span>
-              <span className="text-[#555]">Signal</span>
-              <span className="text-[#888] text-right">≥ {((strategy?.min_signal_strength ?? 0.6) * 100).toFixed(0)}%</span>
-              <span className="text-[#555]">Risk/Reward</span>
-              <span className="text-[#888] text-right">≥ {strategy?.min_risk_reward ?? "2:1"}</span>
-            </div>
-          </div>
-          <div>
-            <div className="text-[8px] tracking-[0.12em] text-[#333] mb-1">SCAN INTERVALS</div>
-            <div className="grid grid-cols-2 gap-1 text-[10px]">
-              {Object.entries(strategy?.scan_intervals ?? { watchlist_scan: "15 min", news_analysis: "10 min", account_snapshot: "30 sec" }).map(([k, v]) => (
-                <Fragment key={k}>
-                  <span className="text-[#555]">{k.replace(/_/g, " ")}</span>
-                  <span className="text-[#888] text-right">{v}</span>
-                </Fragment>
-              ))}
-            </div>
-          </div>
-          <div>
-            <div className="text-[8px] tracking-[0.12em] text-[#333] mb-1">DATA SOURCES</div>
-            <div className="flex flex-wrap gap-1">
-              {(strategy?.data_sources ?? ["Alpaca WS", "PlusE Finance", "Reddit RSS", "Alpaca News", "ApeWisdom"]).map((s) => (
-                <span key={s} className="text-[8px] px-1.5 py-0.5 border border-[#161616] text-[#444] bg-[#050505]">
-                  {s}
-                </span>
-              ))}
-            </div>
-          </div>
-          <div>
-            <div className="text-[8px] tracking-[0.12em] text-[#333] mb-1">PATTERNS ({strategy?.patterns?.length ?? 14})</div>
-            <div className="flex flex-wrap gap-1">
-              {(strategy?.patterns ?? [
-                "doji", "hammer", "engulfing", "harami", "morning_star",
-                "evening_star", "marubozu", "shooting_star",
-              ]).slice(0, 8).map((p) => (
-                <span key={p} className="text-[8px] px-1 py-0 border border-[#111] text-[#333]">
-                  {p.replace(/_/g, " ")}
-                </span>
-              ))}
-              {(strategy?.patterns?.length ?? 14) > 8 && (
-                <span className="text-[8px] text-[#2a2a2a] py-0">+{(strategy?.patterns?.length ?? 14) - 8}</span>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── Agent config ─────────────────────────────────────
-
-const AGENT_CONFIG: Record<string, { label: string; icon: string }> = {
-  scanner: { label: "SCAN", icon: "◉" },
-  analyst: { label: "AI", icon: "◈" },
-  strategist: { label: "STRAT", icon: "◆" },
-  executor: { label: "EXEC", icon: "▶" },
-  news_ai: { label: "NEWS", icon: "◎" },
-};
-
-const LEVEL_STYLE: Record<string, string> = {
-  info: "text-[#555]",
-  warn: "text-[#e5a63f]",
-  error: "text-[#e5484d]",
-  success: "text-[#e8e8e8]",
-};
-
-// ── Activity row ─────────────────────────────────────
-
-function ActivityRow({ event, expanded, onToggle }: { event: ActivityEvent; expanded: boolean; onToggle: () => void }) {
-  const agent = AGENT_CONFIG[event.agent] || { label: event.agent.toUpperCase(), icon: "·" };
-
-  return (
-    <div
-      className="border-b border-[#0e0e0e] hover:bg-[#060606] cursor-pointer transition-colors"
-      onClick={onToggle}
-    >
-      <div className="flex items-start gap-2 px-3 py-2">
-        <span className="text-[9px] text-[#2a2a2a] w-[36px] shrink-0 pt-0.5 tabular-nums">
-          {timeAgo(event.created_at)}
-        </span>
-        <span className="text-[8px] tracking-[0.1em] px-1.5 py-0.5 shrink-0 text-[#555] bg-[#0a0a0a] border border-[#161616]">
-          {agent.icon} {agent.label}
-        </span>
-        {event.symbol && (
-          <span className="text-[10px] font-bold text-[#ccc] shrink-0">{event.symbol}</span>
-        )}
-        <span className={`text-[10px] truncate flex-1 ${LEVEL_STYLE[event.level] || "text-[#555]"}`}>
-          {event.title}
-        </span>
-        {event.detail && (
-          <span className="text-[8px] text-[#2a2a2a] shrink-0">{expanded ? "−" : "+"}</span>
-        )}
-      </div>
-      {expanded && event.detail && (
-        <div className="px-3 pb-3 ml-[44px]">
-          <div className="text-[10px] text-[#555] leading-[1.7] whitespace-pre-wrap bg-[#040404] border border-[#111] p-3 max-h-[300px] overflow-y-auto">
-            {event.detail}
-          </div>
-          {event.metadata && Object.keys(event.metadata).length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {Object.entries(event.metadata).map(([key, val]) => (
-                <span key={key} className="text-[9px] px-1.5 py-0.5 bg-[#080808] border border-[#141414] text-[#555]">
-                  {key}: {typeof val === "object" ? JSON.stringify(val) : String(val)}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ── Agent network diagram ────────────────────────────
-
-function AgentNetworkDiagram({ events }: { events: ActivityEvent[] }) {
-  const agentCounts: Record<string, number> = {};
-  events.slice(0, 50).forEach((e) => {
-    agentCounts[e.agent] = (agentCounts[e.agent] || 0) + 1;
-  });
-
-  const agents = [
-    { id: "scanner", x: 10, y: 50, desc: "Reddit + News" },
-    { id: "news_ai", x: 32, y: 25, desc: "Gemini Flash" },
-    { id: "analyst", x: 50, y: 50, desc: "Trade Eval" },
-    { id: "strategist", x: 72, y: 25, desc: "Patterns" },
-    { id: "executor", x: 90, y: 50, desc: "Orders" },
-  ];
-
-  const connections = [
-    { from: "scanner", to: "news_ai" },
-    { from: "scanner", to: "analyst" },
-    { from: "news_ai", to: "analyst" },
-    { from: "analyst", to: "strategist" },
-    { from: "strategist", to: "executor" },
-  ];
-
-  return (
-    <div className="relative h-[80px] w-full overflow-hidden">
-      <svg className="absolute inset-0 w-full h-full" style={{ zIndex: 0 }}>
-        {connections.map((conn) => {
-          const from = agents.find((a) => a.id === conn.from)!;
-          const to = agents.find((a) => a.id === conn.to)!;
-          return (
-            <line
-              key={`${conn.from}-${conn.to}`}
-              x1={`${from.x}%`} y1={`${from.y}%`}
-              x2={`${to.x}%`} y2={`${to.y}%`}
-              stroke="#161616" strokeWidth="1"
-            />
-          );
-        })}
-      </svg>
-      {agents.map((a) => {
-        const cfg = AGENT_CONFIG[a.id] || { label: a.id, icon: "·" };
-        const count = agentCounts[a.id] || 0;
-        const active = count > 0;
-        return (
-          <div
-            key={a.id}
-            className="absolute flex flex-col items-center"
-            style={{ left: `${a.x}%`, top: `${a.y}%`, transform: "translate(-50%, -50%)", zIndex: 1 }}
-          >
-            <div
-              className="w-[26px] h-[26px] flex items-center justify-center text-[11px] border"
-              style={{
-                borderColor: active ? "#333" : "#1a1a1a",
-                color: active ? "#e8e8e8" : "#333",
-                background: active ? "#0a0a0a" : "#000",
-              }}
-            >
-              {cfg.icon}
-            </div>
-            <div className="text-[7px] tracking-[0.1em] mt-0.5 text-[#555]">{cfg.label}</div>
-            <div className="text-[7px] text-[#2a2a2a]">{a.desc}</div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-// ── Filter tabs ──────────────────────────────────────
-
-const FILTER_OPTIONS = [
-  { key: "all", label: "ALL" },
-  { key: "scanner", label: "SCANNER" },
-  { key: "news_ai", label: "NEWS AI" },
-  { key: "analyst", label: "ANALYST" },
-  { key: "strategist", label: "STRATEGY" },
-  { key: "executor", label: "TRADES" },
-];
 
 // ── Main Page ────────────────────────────────────────
 
@@ -363,310 +59,425 @@ export default function OverviewPage() {
   const { watchlist } = useWatchlist();
   const { events } = useActivityFeed(200);
 
-  const [agentFilter, setAgentFilter] = useState("all");
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const isOnline = bot?.status === "online";
+  const market = bot?.market;
+  const strategy = bot?.strategy;
+  const opensIn = useCountdown(market?.opens_in_seconds);
+  const closesIn = useCountdown(market?.closes_in_seconds);
+  const isMarketOpen = market?.is_market_open ?? false;
+  const isPreMarket = market?.is_pre_market ?? false;
+
   const discovered = watchlist.filter((w) => w.source !== "base");
   const base = watchlist.filter((w) => w.source === "base");
 
-  const filteredEvents = agentFilter === "all"
-    ? events
-    : events.filter((e) => e.agent === agentFilter);
-
   return (
-    <div className="space-y-4">
-      {/* ── Status + Account ────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="border border-[#161616]">
-          <div className="flex items-center justify-between px-4 py-2 border-b border-[#161616] bg-[#040404]">
-            <div className="flex items-center gap-3">
+    <div className="space-y-8">
+
+      {/* ════════════════════════════════════════════════
+          SECTION 1: Status + Market + Account
+          ════════════════════════════════════════════════ */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        {/* Bot status */}
+        <div className="rounded-lg border border-[#e5e5e5] p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xs font-medium text-[#999] uppercase tracking-wide">Bot Status</h3>
+            <div className="flex items-center gap-2">
               <div
-                className={`w-[5px] h-[5px] rounded-full ${isOnline ? "bg-[#3fcf6d]" : "bg-[#e5484d]"}`}
+                className={`w-2.5 h-2.5 rounded-full ${isOnline ? "bg-[#16a34a]" : "bg-[#dc2626]"}`}
                 style={{ animation: "blink 2s ease-in-out infinite" }}
               />
-              <span className="text-[10px] tracking-[0.1em] text-[#555]">STATUS</span>
+              <span className={`text-sm font-semibold ${isOnline ? "text-[#16a34a]" : "text-[#dc2626]"}`}>
+                {isOnline ? "Online" : "Offline"}
+              </span>
             </div>
-            <span className={`text-[10px] tracking-[0.1em] ${isOnline ? "text-[#888]" : "text-[#e5484d]"}`}>
-              {isOnline ? "ONLINE" : "OFFLINE"}
-            </span>
           </div>
-          <div className="grid grid-cols-3 gap-[1px] bg-[#161616]">
-            {[
-              { label: "UPTIME", value: bot?.uptime || "—" },
-              { label: "BARS", value: bot?.activity?.bars_received?.toLocaleString() || "0" },
-              { label: "TRADES", value: bot?.activity?.trades_placed?.toLocaleString() || "0" },
-            ].map((item) => (
-              <div key={item.label} className="bg-[#000] px-3 py-2">
-                <div className="text-[8px] tracking-[0.12em] text-[#333]">{item.label}</div>
-                <div className="text-sm font-bold text-[#e8e8e8]">{item.value}</div>
-              </div>
-            ))}
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-[#999]">Uptime</span>
+              <span className="text-[#111] font-medium">{bot?.uptime || "—"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#999]">Bars received</span>
+              <span className="text-[#111] font-medium">{bot?.activity?.bars_received?.toLocaleString() || "0"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#999]">Trades placed</span>
+              <span className="text-[#111] font-medium">{bot?.activity?.trades_placed?.toLocaleString() || "0"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#999]">Mode</span>
+              <span className="text-[#111] font-medium">{bot?.config?.paper ? "Paper Trading" : "Live Trading"}</span>
+            </div>
           </div>
         </div>
 
-        <div className="border border-[#161616]">
-          <div className="px-4 py-2 border-b border-[#161616] bg-[#040404]">
-            <span className="text-[10px] tracking-[0.1em] text-[#555]">ACCOUNT</span>
+        {/* Market clock */}
+        <div className="rounded-lg border border-[#e5e5e5] p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-xs font-medium text-[#999] uppercase tracking-wide">Market</h3>
+            <span className={`text-sm font-semibold ${
+              isMarketOpen ? "text-[#16a34a]" : isPreMarket ? "text-[#d97706]" : "text-[#dc2626]"
+            }`}>
+              {isMarketOpen ? "Open" : isPreMarket ? "Pre-Market" : "Closed"}
+            </span>
           </div>
-          <div className="grid grid-cols-2 gap-[1px] bg-[#161616]">
-            {[
-              { label: "EQUITY", value: snapshot ? formatMoney(snapshot.equity) : "—" },
-              {
-                label: "DAY P&L",
-                value: snapshot ? `${snapshot.day_pnl >= 0 ? "+" : ""}${formatMoney(snapshot.day_pnl)}` : "—",
-                color: snapshot ? (snapshot.day_pnl >= 0 ? "text-[#3fcf6d]" : "text-[#e5484d]") : "",
-              },
-              { label: "CASH", value: snapshot ? formatMoney(snapshot.cash) : "—" },
-              { label: "BUYING POWER", value: snapshot ? formatMoney(snapshot.buying_power) : "—" },
-            ].map((item) => (
-              <div key={item.label} className="bg-[#000] px-3 py-2">
-                <div className="text-[8px] tracking-[0.12em] text-[#333]">{item.label}</div>
-                <div className={`text-base font-bold ${item.color || "text-[#e8e8e8]"}`}>{item.value}</div>
-              </div>
-            ))}
+          <div className="text-center py-2">
+            <div className="text-xs text-[#999] mb-1">
+              {isMarketOpen ? "Closes in" : "Opens in"}
+            </div>
+            <div className="text-3xl font-bold text-[#111] tabular-nums">
+              {isMarketOpen ? formatCountdown(closesIn) : formatCountdown(opensIn)}
+            </div>
+          </div>
+          <div className="mt-3 pt-3 border-t border-[#f0f0f0] text-sm">
+            <div className="flex justify-between text-[#999]">
+              <span>Hours</span>
+              <span className="text-[#555]">{market?.market_open ?? "09:30"} – {market?.market_close ?? "16:00"} ET</span>
+            </div>
+            <div className="flex justify-between text-[#999] mt-1">
+              <span>Days</span>
+              <span className="text-[#555]">{market?.trading_days ?? "Mon–Fri"}</span>
+            </div>
+          </div>
+          <div className={`mt-3 text-xs px-3 py-2 rounded-md ${
+            isMarketOpen ? "bg-[#f0fdf4] text-[#16a34a]"
+              : isPreMarket ? "bg-[#fffbeb] text-[#d97706]"
+              : "bg-[#f8f8f8] text-[#999]"
+          }`}>
+            {isMarketOpen
+              ? "Actively scanning bars and executing trades"
+              : isPreMarket
+                ? "Pre-market — loading data and scanning watchlist"
+                : "Market closed — scanners run on schedule"
+            }
+          </div>
+        </div>
+
+        {/* Account */}
+        <div className="rounded-lg border border-[#e5e5e5] p-5">
+          <h3 className="text-xs font-medium text-[#999] uppercase tracking-wide mb-4">Account</h3>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-[#999]">Equity</span>
+              <span className="text-[#111] font-bold text-base">{snapshot ? formatMoney(snapshot.equity) : "—"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#999]">Day P&L</span>
+              <span className={`font-bold text-base ${
+                snapshot ? (snapshot.day_pnl >= 0 ? "text-[#16a34a]" : "text-[#dc2626]") : "text-[#111]"
+              }`}>
+                {snapshot ? `${snapshot.day_pnl >= 0 ? "+" : ""}${formatMoney(snapshot.day_pnl)}` : "—"}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#999]">Cash</span>
+              <span className="text-[#111] font-medium">{snapshot ? formatMoney(snapshot.cash) : "—"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#999]">Buying power</span>
+              <span className="text-[#111] font-medium">{snapshot ? formatMoney(snapshot.buying_power) : "—"}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-[#999]">Open positions</span>
+              <span className="text-[#111] font-medium">{positions.length}</span>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ── Market Schedule + Strategy ────────────────────── */}
-      <MarketAndStrategy bot={bot} />
-
-      {/* ── Agent Network ───────────────────────────────── */}
-      <div className="border border-[#161616]">
-        <div className="px-4 py-2 border-b border-[#161616] bg-[#040404] flex items-center justify-between">
-          <span className="text-[10px] tracking-[0.1em] text-[#555]">AGENT NETWORK</span>
-          <span className="text-[9px] text-[#2a2a2a]">{events.length} events</span>
-        </div>
-        <div className="p-4">
-          <AgentNetworkDiagram events={events} />
+      {/* ════════════════════════════════════════════════
+          SECTION 2: What It's Watching
+          ════════════════════════════════════════════════ */}
+      <div>
+        <div className="flex items-baseline justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-bold text-[#111]">Watching {watchlist.length} stocks</h2>
+            <p className="text-sm text-[#999]">These are the stocks the bot will analyze on every 5-min bar during market hours</p>
+          </div>
         </div>
 
-        <div className="flex items-center border-t border-[#161616] bg-[#030303]">
-          {FILTER_OPTIONS.map((opt) => {
-            const isActive = agentFilter === opt.key;
-            return (
-              <button
-                key={opt.key}
-                onClick={() => setAgentFilter(opt.key)}
-                className={`px-3 py-2 text-[9px] tracking-[0.1em] transition-colors border-r border-[#161616] ${
-                  isActive ? "text-[#e8e8e8] bg-[#0a0a0a]" : "text-[#333] hover:text-[#888] hover:bg-[#060606]"
-                }`}
-              >
-                {opt.label}
-                {opt.key !== "all" && (
-                  <span className="ml-1 text-[#2a2a2a]">{events.filter((e) => e.agent === opt.key).length}</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="max-h-[500px] overflow-y-auto">
-          {filteredEvents.length === 0 ? (
-            <div className="text-[11px] text-[#1a1a1a] text-center py-12">
-              {events.length === 0 ? "Awaiting agent activity..." : "No events for this filter"}
+        <div className="rounded-lg border border-[#e5e5e5] overflow-hidden">
+          {/* Core watchlist */}
+          {base.length > 0 && (
+            <div className="px-5 py-3 border-b border-[#f0f0f0] bg-[#fafafa]">
+              <div className="text-xs text-[#999] font-medium mb-2">Core watchlist (always active)</div>
+              <div className="flex flex-wrap gap-2">
+                {base.map((w) => (
+                  <span key={w.id} className="px-3 py-1 text-sm font-semibold text-[#111] bg-white border border-[#e5e5e5] rounded-md">
+                    {w.symbol}
+                  </span>
+                ))}
+              </div>
             </div>
-          ) : (
-            filteredEvents.map((event) => (
-              <ActivityRow
-                key={event.id}
-                event={event}
-                expanded={expandedId === event.id}
-                onToggle={() => setExpandedId(expandedId === event.id ? null : event.id)}
-              />
-            ))
+          )}
+
+          {/* Discovered stocks */}
+          {discovered.length > 0 && (
+            <div className="divide-y divide-[#f0f0f0]">
+              <div className="px-5 py-3 bg-[#fafafa]">
+                <div className="text-xs text-[#999] font-medium">Discovered by AI scanner</div>
+              </div>
+              {discovered.map((w) => (
+                <div key={w.id} className="px-5 py-3 flex items-center justify-between hover:bg-[#fafafa] transition-colors">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-bold text-[#111]">{w.symbol}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      w.source === "ai_approved"
+                        ? "bg-[#eff6ff] text-[#2563eb]"
+                        : "bg-[#f8f8f8] text-[#999]"
+                    }`}>
+                      {w.source === "ai_approved" ? "AI Approved" : "Score-based"}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    {w.discovery_sources && w.discovery_sources.length > 0 && (
+                      <div className="flex gap-1">
+                        {w.discovery_sources.map((s) => (
+                          <span key={s} className="text-[11px] px-1.5 py-0.5 rounded bg-[#f5f5f5] text-[#999]">{s}</span>
+                        ))}
+                      </div>
+                    )}
+                    <span className="text-sm text-[#555] tabular-nums w-10 text-right">{w.score.toFixed(0)}</span>
+                  </div>
+                </div>
+              ))}
+              {discovered.length > 0 && discovered[0].reason && (
+                <div className="px-5 py-2 bg-[#fafafa] text-xs text-[#999]">
+                  Latest reasoning: {discovered[0].reason}
+                </div>
+              )}
+            </div>
+          )}
+
+          {watchlist.length === 0 && (
+            <div className="text-sm text-[#999] text-center py-8">Scanner initializing...</div>
           )}
         </div>
       </div>
 
-      {/* ── Equity + Watchlist ────────────────────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 border border-[#161616]">
-          <div className="px-4 py-2 border-b border-[#161616] bg-[#040404]">
-            <span className="text-[10px] tracking-[0.1em] text-[#555]">EQUITY CURVE</span>
+      {/* ════════════════════════════════════════════════
+          SECTION 3: How It Decides
+          ════════════════════════════════════════════════ */}
+      <div>
+        <h2 className="text-lg font-bold text-[#111] mb-1">How it decides to trade</h2>
+        <p className="text-sm text-[#999] mb-4">Every 5-minute bar goes through this pipeline. A trade only happens if every step passes.</p>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[
+            { step: "1", title: "Detect Pattern", desc: "14 candlestick patterns scanned on the latest candle", detail: "Doji, hammer, engulfing, morning star..." },
+            { step: "2", title: "Score Signal", desc: "Pattern + RSI + MACD + EMA + volume + trend = combined score", detail: `Minimum strength: ${((strategy?.min_signal_strength ?? 0.6) * 100).toFixed(0)}%` },
+            { step: "3", title: "Risk Check", desc: `Max ${strategy?.risk?.max_positions ?? 3} positions, ${((strategy?.risk?.daily_loss_limit_pct ?? 0.03) * 100).toFixed(0)}% daily loss limit`, detail: `${((strategy?.risk?.max_position_pct ?? 0.05) * 100).toFixed(0)}% per position` },
+            { step: "4", title: "AI Evaluation", desc: `${strategy?.ai_model ?? "Gemini 3 Pro"} reviews signal with full market context`, detail: `Min confidence: ${((strategy?.min_confidence ?? 0.6) * 100).toFixed(0)}%` },
+          ].map((p) => (
+            <div key={p.step} className="rounded-lg border border-[#e5e5e5] p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-6 h-6 rounded-full bg-[#111] text-white text-xs flex items-center justify-center font-bold">{p.step}</span>
+                <span className="text-sm font-semibold text-[#111]">{p.title}</span>
+              </div>
+              <p className="text-xs text-[#555] leading-relaxed">{p.desc}</p>
+              <p className="text-[11px] text-[#999] mt-1">{p.detail}</p>
+            </div>
+          ))}
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-2">
+          <span className="text-xs text-[#999]">Data sources:</span>
+          {(strategy?.data_sources ?? ["Alpaca real-time bars", "PlusE Finance", "Reddit RSS", "Alpaca news", "ApeWisdom"]).map((s) => (
+            <span key={s} className="text-xs px-2 py-0.5 rounded-full bg-[#f5f5f5] text-[#555]">{s}</span>
+          ))}
+        </div>
+      </div>
+
+      {/* ════════════════════════════════════════════════
+          SECTION 4: Equity + Positions
+          ════════════════════════════════════════════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 rounded-lg border border-[#e5e5e5]">
+          <div className="px-5 py-3 border-b border-[#f0f0f0]">
+            <h3 className="text-xs font-medium text-[#999] uppercase tracking-wide">Equity Curve</h3>
           </div>
-          <div className="p-2">
+          <div className="p-3">
             {history.length > 0 ? (
-              <PnLCurve data={history} height={180} />
+              <PnLCurve data={history} height={200} />
             ) : (
-              <div className="h-[180px] flex items-center justify-center text-[11px] text-[#1a1a1a]">
+              <div className="h-[200px] flex items-center justify-center text-sm text-[#ccc]">
                 Awaiting data...
               </div>
             )}
           </div>
         </div>
 
-        <div className="border border-[#161616]">
-          <div className="px-4 py-2 border-b border-[#161616] bg-[#040404] flex items-center justify-between">
-            <span className="text-[10px] tracking-[0.1em] text-[#555]">WATCHLIST</span>
-            <span className="text-[9px] text-[#2a2a2a]">{watchlist.length}</span>
+        <div className="rounded-lg border border-[#e5e5e5]">
+          <div className="px-5 py-3 border-b border-[#f0f0f0] flex items-center justify-between">
+            <h3 className="text-xs font-medium text-[#999] uppercase tracking-wide">Open Positions</h3>
+            <span className="text-xs text-[#999]">{positions.length}</span>
           </div>
-          <div className="p-3 space-y-3 max-h-[230px] overflow-y-auto">
-            {base.length > 0 && (
-              <div>
-                <div className="text-[9px] tracking-[0.1em] text-[#2a2a2a] mb-2">CORE</div>
-                <div className="flex flex-wrap gap-1">
-                  {base.map((w) => (
-                    <span key={w.id} className="px-2 py-0.5 text-[10px] border border-[#1a1a1a] text-[#555]">
-                      {w.symbol}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-            {discovered.length > 0 && (
-              <div>
-                <div className="text-[9px] tracking-[0.1em] text-[#2a2a2a] mb-2">DISCOVERED</div>
-                <div className="space-y-1">
-                  {discovered.map((w) => (
-                    <div key={w.id} className="flex items-center justify-between text-[11px] py-1 border-b border-[#0e0e0e]">
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-[#ccc]">{w.symbol}</span>
-                        <span className={`text-[8px] tracking-[0.08em] px-1 ${
-                          w.source === "ai_approved"
-                            ? "text-[#888] bg-[#0e0e0e]"
-                            : "text-[#555] bg-[#0a0a0a]"
-                        }`}>
-                          {w.source === "ai_approved" ? "AI" : "SCORE"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="h-[2px] bg-[#333]" style={{ width: `${Math.min(w.score * 2, 60)}px` }} />
-                        <span className="text-[10px] text-[#333] w-8 text-right">{w.score.toFixed(0)}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            {watchlist.length === 0 && (
-              <div className="text-[11px] text-[#1a1a1a] text-center py-4">Scanner initializing...</div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Positions + Trades + Signals ──────────────── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="border border-[#161616]">
-          <div className="px-4 py-2 border-b border-[#161616] bg-[#040404] flex items-center justify-between">
-            <span className="text-[10px] tracking-[0.1em] text-[#555]">POSITIONS</span>
-            <span className="text-[9px] text-[#2a2a2a]">{positions.length}</span>
-          </div>
-          <div className="p-0">
-            {positions.length === 0 ? (
-              <div className="text-[11px] text-[#1a1a1a] text-center py-8">No positions</div>
-            ) : (
-              <table className="w-full text-[11px]">
-                <thead>
-                  <tr className="border-b border-[#111]">
-                    <th className="text-left px-3 py-2 text-[9px] tracking-[0.08em] text-[#333] font-normal">SYM</th>
-                    <th className="text-right px-3 py-2 text-[9px] tracking-[0.08em] text-[#333] font-normal">QTY</th>
-                    <th className="text-right px-3 py-2 text-[9px] tracking-[0.08em] text-[#333] font-normal">P&L</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {positions.map((p) => (
-                    <tr key={p.id} className="border-b border-[#0a0a0a]">
-                      <td className="px-3 py-2 font-bold text-[#ccc]">{p.symbol}</td>
-                      <td className="px-3 py-2 text-right text-[#555]">{p.quantity}</td>
-                      <td className={`px-3 py-2 text-right ${(p.unrealized_pnl || 0) >= 0 ? "text-[#3fcf6d]" : "text-[#e5484d]"}`}>
-                        {p.unrealized_pnl ? `$${p.unrealized_pnl.toFixed(2)}` : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-
-        <div className="border border-[#161616]">
-          <div className="px-4 py-2 border-b border-[#161616] bg-[#040404] flex items-center justify-between">
-            <span className="text-[10px] tracking-[0.1em] text-[#555]">RECENT TRADES</span>
-            <span className="text-[9px] text-[#2a2a2a]">{trades.length}</span>
-          </div>
-          <div className="p-0 max-h-[300px] overflow-y-auto">
-            {trades.length === 0 ? (
-              <div className="text-[11px] text-[#1a1a1a] text-center py-8">No trades yet</div>
-            ) : (
-              <table className="w-full text-[11px]">
-                <thead>
-                  <tr className="border-b border-[#111]">
-                    <th className="text-left px-3 py-2 text-[9px] tracking-[0.08em] text-[#333] font-normal">SYM</th>
-                    <th className="text-left px-3 py-2 text-[9px] tracking-[0.08em] text-[#333] font-normal">SIDE</th>
-                    <th className="text-right px-3 py-2 text-[9px] tracking-[0.08em] text-[#333] font-normal">P&L</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {trades.map((t) => (
-                    <tr key={t.id} className="border-b border-[#0a0a0a]">
-                      <td className="px-3 py-2 font-bold text-[#ccc]">{t.symbol}</td>
-                      <td className="px-3 py-2 text-[#888]">{t.side.toUpperCase()}</td>
-                      <td className={`px-3 py-2 text-right ${(t.pnl || 0) >= 0 ? "text-[#3fcf6d]" : "text-[#e5484d]"}`}>
-                        {t.pnl != null ? `$${t.pnl.toFixed(2)}` : t.status.toUpperCase()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-
-        <div className="border border-[#161616]">
-          <div className="px-4 py-2 border-b border-[#161616] bg-[#040404] flex items-center justify-between">
-            <span className="text-[10px] tracking-[0.1em] text-[#555]">SIGNALS</span>
-            <span className="text-[9px] text-[#2a2a2a]">{signals.length}</span>
-          </div>
-          <div className="p-0 max-h-[300px] overflow-y-auto">
-            {signals.length === 0 ? (
-              <div className="text-[11px] text-[#1a1a1a] text-center py-8">No signals</div>
-            ) : (
-              <div className="divide-y divide-[#0a0a0a]">
-                {signals.map((s) => (
-                  <div key={s.id} className="px-3 py-2 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className={`w-[3px] h-[3px] rounded-full ${s.direction === "long" ? "bg-[#3fcf6d]" : "bg-[#e5484d]"}`} />
-                      <span className="font-bold text-[11px] text-[#ccc]">{s.symbol}</span>
-                      <span className="text-[10px] text-[#444]">{s.name.replace(/_/g, " ")}</span>
-                    </div>
-                    <span className="text-[10px] text-[#333]">{(s.strength * 100).toFixed(0)}%</span>
+          {positions.length === 0 ? (
+            <div className="text-sm text-[#ccc] text-center py-8">No open positions</div>
+          ) : (
+            <div className="divide-y divide-[#f0f0f0]">
+              {positions.map((p) => (
+                <div key={p.id} className="px-5 py-3 flex items-center justify-between">
+                  <div>
+                    <span className="text-sm font-bold text-[#111]">{p.symbol}</span>
+                    <span className="text-xs text-[#999] ml-2">{p.quantity} shares</span>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  <span className={`text-sm font-semibold ${(p.unrealized_pnl || 0) >= 0 ? "text-[#16a34a]" : "text-[#dc2626]"}`}>
+                    {p.unrealized_pnl ? `$${p.unrealized_pnl.toFixed(2)}` : "—"}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* ── Live Log ─────────────────────────────────── */}
-      <div className="border border-[#161616]">
-        <div className="px-4 py-2 border-b border-[#161616] bg-[#040404] flex items-center justify-between">
-          <span className="text-[10px] tracking-[0.1em] text-[#555]">LIVE LOG</span>
-          <span className="text-[9px] text-[#2a2a2a]">
-            {bot?.errors?.last_error ? (
-              <span className="text-[#e5484d]">{bot.errors.last_error.slice(0, 60)}</span>
-            ) : (
-              "no errors"
-            )}
-          </span>
+      {/* ════════════════════════════════════════════════
+          SECTION 5: Recent Trades + Signals
+          ════════════════════════════════════════════════ */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="rounded-lg border border-[#e5e5e5]">
+          <div className="px-5 py-3 border-b border-[#f0f0f0] flex items-center justify-between">
+            <h3 className="text-xs font-medium text-[#999] uppercase tracking-wide">Recent Trades</h3>
+            <span className="text-xs text-[#999]">{trades.length}</span>
+          </div>
+          {trades.length === 0 ? (
+            <div className="text-sm text-[#ccc] text-center py-8">No trades yet — waiting for market open</div>
+          ) : (
+            <div className="divide-y divide-[#f0f0f0]">
+              {trades.map((t) => (
+                <div key={t.id} className="px-5 py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-bold text-[#111]">{t.symbol}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
+                      t.side === "buy" ? "bg-[#f0fdf4] text-[#16a34a]" : "bg-[#fef2f2] text-[#dc2626]"
+                    }`}>
+                      {t.side.toUpperCase()}
+                    </span>
+                  </div>
+                  <span className={`text-sm font-semibold ${(t.pnl || 0) >= 0 ? "text-[#16a34a]" : "text-[#dc2626]"}`}>
+                    {t.pnl != null ? `$${t.pnl.toFixed(2)}` : t.status.toUpperCase()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
-        <div className="p-3 max-h-[180px] overflow-y-auto bg-[#020202] text-[10px] leading-[1.8]">
+
+        <div className="rounded-lg border border-[#e5e5e5]">
+          <div className="px-5 py-3 border-b border-[#f0f0f0] flex items-center justify-between">
+            <h3 className="text-xs font-medium text-[#999] uppercase tracking-wide">Recent Signals</h3>
+            <span className="text-xs text-[#999]">{signals.length}</span>
+          </div>
+          {signals.length === 0 ? (
+            <div className="text-sm text-[#ccc] text-center py-8">No signals detected yet</div>
+          ) : (
+            <div className="divide-y divide-[#f0f0f0]">
+              {signals.map((s) => (
+                <div key={s.id} className="px-5 py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className={`w-2 h-2 rounded-full ${s.direction === "long" ? "bg-[#16a34a]" : "bg-[#dc2626]"}`} />
+                    <span className="text-sm font-bold text-[#111]">{s.symbol}</span>
+                    <span className="text-xs text-[#999]">{s.name.replace(/_/g, " ")}</span>
+                  </div>
+                  <span className="text-sm text-[#555] font-medium">{(s.strength * 100).toFixed(0)}%</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ════════════════════════════════════════════════
+          SECTION 6: Activity Feed
+          ════════════════════════════════════════════════ */}
+      <div className="rounded-lg border border-[#e5e5e5]">
+        <div className="px-5 py-3 border-b border-[#f0f0f0] flex items-center justify-between">
+          <h3 className="text-xs font-medium text-[#999] uppercase tracking-wide">Activity Feed</h3>
+          <span className="text-xs text-[#999]">{events.length} events</span>
+        </div>
+        <div className="max-h-[400px] overflow-y-auto divide-y divide-[#f0f0f0]">
+          {events.length === 0 ? (
+            <div className="text-sm text-[#ccc] text-center py-8">Awaiting agent activity...</div>
+          ) : (
+            events.slice(0, 50).map((event) => (
+              <div
+                key={event.id}
+                className="px-5 py-3 hover:bg-[#fafafa] cursor-pointer transition-colors"
+                onClick={() => setExpandedId(expandedId === event.id ? null : event.id)}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-[#ccc] w-14 shrink-0 tabular-nums">{timeAgo(event.created_at)}</span>
+                  <span className={`text-[11px] px-2 py-0.5 rounded-full font-medium shrink-0 ${
+                    event.agent === "scanner" ? "bg-[#f5f5f5] text-[#555]" :
+                    event.agent === "analyst" ? "bg-[#eff6ff] text-[#2563eb]" :
+                    event.agent === "news_ai" ? "bg-[#fffbeb] text-[#d97706]" :
+                    event.agent === "executor" ? "bg-[#f0fdf4] text-[#16a34a]" :
+                    "bg-[#f5f5f5] text-[#999]"
+                  }`}>
+                    {event.agent}
+                  </span>
+                  {event.symbol && (
+                    <span className="text-sm font-bold text-[#111]">{event.symbol}</span>
+                  )}
+                  <span className={`text-sm truncate ${
+                    event.level === "error" ? "text-[#dc2626]" :
+                    event.level === "warn" ? "text-[#d97706]" :
+                    event.level === "success" ? "text-[#111]" :
+                    "text-[#555]"
+                  }`}>
+                    {event.title}
+                  </span>
+                </div>
+                {expandedId === event.id && event.detail && (
+                  <div className="mt-2 ml-[68px]">
+                    <div className="text-xs text-[#555] leading-relaxed whitespace-pre-wrap bg-[#f8f8f8] border border-[#e5e5e5] rounded-md p-3 max-h-[300px] overflow-y-auto">
+                      {event.detail}
+                    </div>
+                    {event.metadata && Object.keys(event.metadata).length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1.5">
+                        {Object.entries(event.metadata).map(([key, val]) => (
+                          <span key={key} className="text-[11px] px-2 py-0.5 bg-[#f5f5f5] rounded text-[#555]">
+                            {key}: {typeof val === "object" ? JSON.stringify(val) : String(val)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+      </div>
+
+      {/* ════════════════════════════════════════════════
+          SECTION 7: Live Log
+          ════════════════════════════════════════════════ */}
+      <div className="rounded-lg border border-[#e5e5e5]">
+        <div className="px-5 py-3 border-b border-[#f0f0f0] flex items-center justify-between">
+          <h3 className="text-xs font-medium text-[#999] uppercase tracking-wide">Live Log</h3>
+          {bot?.errors?.last_error && (
+            <span className="text-xs text-[#dc2626]">{bot.errors.last_error.slice(0, 60)}</span>
+          )}
+        </div>
+        <div className="p-4 max-h-[200px] overflow-y-auto bg-[#fafafa] text-xs leading-relaxed">
           {bot?.logs && bot.logs.length > 0 ? (
             bot.logs.map((line, i) => (
-              <div key={i} className={`${
-                line.includes("TRADE") ? "text-[#e8e8e8]" :
-                line.includes("ERROR") || line.includes("FAIL") ? "text-[#e5484d]" :
-                line.includes("WATCHLIST") || line.includes("NEWS") ? "text-[#888]" :
-                "text-[#333]"
-              }`}>
+              <div key={i} className={
+                line.includes("TRADE") ? "text-[#111] font-medium" :
+                line.includes("ERROR") || line.includes("FAIL") ? "text-[#dc2626]" :
+                line.includes("WATCHLIST") || line.includes("NEWS") ? "text-[#555]" :
+                "text-[#999]"
+              }>
                 {line}
               </div>
             ))
           ) : (
-            <div className="text-[#1a1a1a]">Connecting to bot...</div>
+            <div className="text-[#ccc]">Connecting to bot...</div>
           )}
         </div>
       </div>

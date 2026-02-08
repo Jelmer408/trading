@@ -23,47 +23,37 @@ export default function ChartsPage() {
   const symbolSignals = signals.filter((s) => s.symbol === activeSymbol);
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-bold tracking-[0.08em] text-[#e8e8e8]">Charts</h2>
-          <p className="text-[10px] text-[#333] tracking-[0.04em]">
-            Live candlestick data with pattern detection
-          </p>
-        </div>
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-lg font-bold text-[#111]">Charts</h2>
+        <p className="text-sm text-[#999]">Live candlestick data with pattern detection</p>
       </div>
 
-      <div className="flex flex-wrap items-center gap-0 border border-[#161616]">
-        <div className="px-3 py-2 bg-[#040404] border-r border-[#161616]">
-          <span className="text-[9px] tracking-[0.1em] text-[#333]">SYMBOL</span>
-        </div>
-        <div className="flex overflow-x-auto">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-1 flex-wrap">
           {symbols.map((sym) => (
             <button
               key={sym}
               onClick={() => setActiveSymbol(sym)}
-              className={`px-3 py-2 text-[11px] border-r border-[#161616] transition-colors ${
+              className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
                 activeSymbol === sym
-                  ? "text-[#e8e8e8] bg-[#0a0a0a]"
-                  : "text-[#444] hover:text-[#999] hover:bg-[#060606]"
+                  ? "text-[#111] bg-[#f0f0f0] font-medium"
+                  : "text-[#999] hover:text-[#555] hover:bg-[#f8f8f8]"
               }`}
             >
               {sym}
             </button>
           ))}
         </div>
-        <div className="ml-auto flex">
-          <div className="px-3 py-2 bg-[#040404] border-l border-[#161616]">
-            <span className="text-[9px] tracking-[0.1em] text-[#333]">TF</span>
-          </div>
+        <div className="ml-auto flex items-center gap-1">
           {TIMEFRAMES.map((tf) => (
             <button
               key={tf}
               onClick={() => setActiveTimeframe(tf)}
-              className={`px-3 py-2 text-[11px] border-l border-[#161616] transition-colors ${
+              className={`px-3 py-1.5 text-xs rounded-md transition-colors ${
                 activeTimeframe === tf
-                  ? "text-[#e8e8e8] bg-[#0a0a0a]"
-                  : "text-[#444] hover:text-[#999] hover:bg-[#060606]"
+                  ? "text-[#111] bg-[#f0f0f0] font-medium"
+                  : "text-[#999] hover:text-[#555] hover:bg-[#f8f8f8]"
               }`}
             >
               {tf}
@@ -72,12 +62,10 @@ export default function ChartsPage() {
         </div>
       </div>
 
-      <div className="border border-[#161616]">
-        <div className="px-4 py-2 border-b border-[#161616] bg-[#040404] flex items-center justify-between">
-          <span className="text-[10px] tracking-[0.1em] text-[#555]">
-            {activeSymbol} / {activeTimeframe}
-          </span>
-          <span className="text-[9px] text-[#2a2a2a]">LIVE</span>
+      <div className="rounded-lg border border-[#e5e5e5] overflow-hidden">
+        <div className="px-5 py-3 border-b border-[#f0f0f0] flex items-center justify-between bg-[#fafafa]">
+          <span className="text-sm font-semibold text-[#111]">{activeSymbol} / {activeTimeframe}</span>
+          <span className="text-xs text-[#16a34a] font-medium">LIVE</span>
         </div>
         <CandlestickChart
           ref={chartRef}
@@ -92,23 +80,23 @@ export default function ChartsPage() {
       </div>
 
       {symbolSignals.length > 0 && (
-        <div className="border border-[#161616]">
-          <div className="px-4 py-2 border-b border-[#161616] bg-[#040404]">
-            <span className="text-[10px] tracking-[0.1em] text-[#555]">
-              SIGNALS — {activeSymbol}
+        <div className="rounded-lg border border-[#e5e5e5] overflow-hidden">
+          <div className="px-5 py-3 border-b border-[#f0f0f0] bg-[#fafafa]">
+            <span className="text-xs font-medium text-[#999] uppercase tracking-wide">
+              Signals — {activeSymbol}
             </span>
           </div>
-          <div className="flex flex-wrap gap-0">
+          <div className="flex flex-wrap gap-2 p-4">
             {symbolSignals.map((sig) => (
               <div
                 key={sig.id}
-                className="px-3 py-2 border-r border-b border-[#161616] text-[11px] flex items-center gap-2 text-[#888]"
+                className="px-3 py-1.5 text-xs rounded-md bg-[#f8f8f8] text-[#555] flex items-center gap-2"
               >
-                <span className={`w-[3px] h-[3px] rounded-full ${
-                  sig.direction === "long" ? "bg-[#3fcf6d]" : "bg-[#e5484d]"
+                <span className={`w-2 h-2 rounded-full ${
+                  sig.direction === "long" ? "bg-[#16a34a]" : "bg-[#dc2626]"
                 }`} />
                 {sig.name.replace(/_/g, " ")}
-                <span className="text-[#333]">{(sig.strength * 100).toFixed(0)}%</span>
+                <span className="text-[#999]">{(sig.strength * 100).toFixed(0)}%</span>
               </div>
             ))}
           </div>

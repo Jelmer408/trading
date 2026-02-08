@@ -23,7 +23,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={mono.variable}>
         <TopNav />
-        <main className="pt-[88px] px-4 pb-8 max-w-[1400px] mx-auto">
+        <main className="pt-[96px] px-5 pb-10 max-w-[1200px] mx-auto">
           {children}
         </main>
       </body>

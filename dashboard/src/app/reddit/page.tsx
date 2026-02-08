@@ -16,7 +16,6 @@ export default function RedditPage() {
   const { watchlist } = useWatchlist();
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
-  // ── Filter events by type ──────────────────────────
   const scanEvents = events.filter(
     (e) => e.agent === "scanner" && (e.event_type === "scan_started" || e.event_type === "scan_result")
   );
@@ -30,152 +29,118 @@ export default function RedditPage() {
   const aiResponses = events.filter(
     (e) => e.agent === "analyst" && e.event_type === "ai_response" && e.title.toLowerCase().includes("approved")
   );
-  const watchlistUpdates = events.filter(
-    (e) => e.event_type === "watchlist_update"
-  );
 
-  // Discovered stocks from watchlist
   const discovered = watchlist.filter((w) => w.source !== "base");
-
-  // Extract tickers from the latest scan result metadata
   const latestScan = scanResults[0];
   const scannedTickers: Array<{ symbol: string; score: number; sources: string[] }> =
     (latestScan?.metadata?.tickers as Array<{ symbol: string; score: number; sources: string[] }>) || [];
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-sm font-bold tracking-[0.08em] text-[#e8e8e8]">Reddit Scanner</h2>
-          <p className="text-[10px] text-[#333] tracking-[0.04em]">
+          <h2 className="text-lg font-bold text-[#111]">Reddit Scanner</h2>
+          <p className="text-sm text-[#999]">
             RSS feeds from r/wallstreetbets, r/stocks, r/options, r/stockmarket + ApeWisdom
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-[9px] text-[#333] tracking-[0.08em]">
-            {redditScans.length} scans logged
-          </span>
-          <span className="text-[9px] text-[#555] tracking-[0.08em] px-2 py-1 border border-[#1a1a1a]">
-            EVERY 15 MIN
-          </span>
+          <span className="text-xs text-[#999]">{redditScans.length} scans logged</span>
+          <span className="text-xs text-[#555] px-2 py-1 rounded-md bg-[#f5f5f5]">Every 15 min</span>
         </div>
       </div>
 
-      {/* ── Pipeline overview ─────────────────────────── */}
-      <div className="grid grid-cols-4 gap-[1px] bg-[#161616]">
+      {/* Stats */}
+      <div className="grid grid-cols-4 gap-4">
         {[
-          { label: "SCANS", value: redditScans.length, sub: "RSS + ApeWisdom" },
-          { label: "TICKERS FOUND", value: scannedTickers.length || Number(latestScan?.metadata?.count) || "—", sub: "latest scan" },
-          { label: "AI EVALUATED", value: aiEvals.length, sub: "Gemini calls" },
-          { label: "DISCOVERED", value: discovered.length, sub: "on watchlist" },
+          { label: "Scans", value: redditScans.length, sub: "RSS + ApeWisdom" },
+          { label: "Tickers Found", value: scannedTickers.length || Number(latestScan?.metadata?.count) || "—", sub: "latest scan" },
+          { label: "AI Evaluated", value: aiEvals.length, sub: "Gemini calls" },
+          { label: "Discovered", value: discovered.length, sub: "on watchlist" },
         ].map((item) => (
-          <div key={item.label} className="bg-[#000] px-4 py-3">
-            <div className="text-[8px] tracking-[0.12em] text-[#333]">{item.label}</div>
-            <div className="text-lg font-bold text-[#e8e8e8]">{item.value}</div>
-            <div className="text-[9px] text-[#2a2a2a]">{item.sub}</div>
+          <div key={item.label} className="rounded-lg border border-[#e5e5e5] p-4">
+            <div className="text-xs text-[#999]">{item.label}</div>
+            <div className="text-2xl font-bold text-[#111]">{item.value}</div>
+            <div className="text-xs text-[#ccc]">{item.sub}</div>
           </div>
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        {/* ── Latest Scan Results (tickers found) ────── */}
-        <div className="border border-[#161616]">
-          <div className="px-4 py-2 border-b border-[#161616] bg-[#040404] flex items-center justify-between">
-            <span className="text-[10px] tracking-[0.1em] text-[#555]">TRENDING TICKERS</span>
-            <span className="text-[9px] text-[#2a2a2a]">
-              {latestScan ? timeAgo(latestScan.created_at) : "—"}
-            </span>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Trending tickers */}
+        <div className="rounded-lg border border-[#e5e5e5]">
+          <div className="px-5 py-3 border-b border-[#f0f0f0] flex items-center justify-between bg-[#fafafa]">
+            <span className="text-xs font-medium text-[#999] uppercase tracking-wide">Trending Tickers</span>
+            <span className="text-xs text-[#ccc]">{latestScan ? timeAgo(latestScan.created_at) : "—"}</span>
           </div>
           <div className="max-h-[400px] overflow-y-auto">
             {scanResults.length === 0 ? (
-              <div className="text-[11px] text-[#1a1a1a] text-center py-12">
-                Awaiting first Reddit scan...
+              <div className="text-sm text-[#ccc] text-center py-12">Awaiting first Reddit scan...</div>
+            ) : scannedTickers.length > 0 ? (
+              <div className="divide-y divide-[#f0f0f0]">
+                {scannedTickers.map((t, i) => (
+                  <div key={t.symbol} className="flex items-center justify-between px-5 py-2.5 hover:bg-[#fafafa]">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-[#ccc] w-5 text-right tabular-nums">{i + 1}</span>
+                      <span className="text-sm font-bold text-[#111]">{t.symbol}</span>
+                      <div className="flex gap-1">
+                        {(t.sources || []).map((s) => (
+                          <span key={s} className="text-[11px] px-1.5 py-0.5 rounded bg-[#f5f5f5] text-[#999]">{s}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <span className="text-sm text-[#555] tabular-nums">{t.score}</span>
+                  </div>
+                ))}
               </div>
             ) : (
-              <>
-                {/* Show tickers from metadata if available */}
-                {scannedTickers.length > 0 ? (
-                  <div className="divide-y divide-[#0a0a0a]">
-                    {scannedTickers.map((t, i) => (
-                      <div key={t.symbol} className="flex items-center justify-between px-4 py-2 hover:bg-[#040404]">
-                        <div className="flex items-center gap-3">
-                          <span className="text-[10px] text-[#2a2a2a] w-5 text-right tabular-nums">{i + 1}</span>
-                          <span className="text-[12px] font-bold text-[#ccc]">{t.symbol}</span>
-                          <div className="flex gap-1">
-                            {(t.sources || []).map((s) => (
-                              <span key={s} className="text-[8px] px-1 py-0 bg-[#080808] border border-[#141414] text-[#444]">
-                                {s}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="h-[2px] bg-[#333]" style={{ width: `${Math.min(t.score * 3, 80)}px` }} />
-                          <span className="text-[10px] text-[#555] w-10 text-right tabular-nums">{t.score}</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  /* Fallback: show the scan result detail text */
-                  <div className="p-4">
-                    <div className="text-[11px] text-[#555]">{latestScan?.title}</div>
-                    {latestScan?.detail && (
-                      <div className="text-[10px] text-[#333] leading-[1.6] mt-2 whitespace-pre-wrap bg-[#030303] border border-[#111] p-3 max-h-[300px] overflow-y-auto">
-                        {latestScan.detail}
-                      </div>
-                    )}
+              <div className="p-5">
+                <div className="text-sm text-[#555]">{latestScan?.title}</div>
+                {latestScan?.detail && (
+                  <div className="text-xs text-[#999] leading-relaxed mt-2 whitespace-pre-wrap bg-[#f8f8f8] border border-[#e5e5e5] rounded-md p-3 max-h-[300px] overflow-y-auto">
+                    {latestScan.detail}
                   </div>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>
 
-        {/* ── Discovered stocks on watchlist ──────── */}
-        <div className="border border-[#161616]">
-          <div className="px-4 py-2 border-b border-[#161616] bg-[#040404] flex items-center justify-between">
-            <span className="text-[10px] tracking-[0.1em] text-[#555]">ADDED TO WATCHLIST</span>
-            <span className="text-[9px] text-[#2a2a2a]">{discovered.length} stocks</span>
+        {/* Discovered stocks */}
+        <div className="rounded-lg border border-[#e5e5e5]">
+          <div className="px-5 py-3 border-b border-[#f0f0f0] flex items-center justify-between bg-[#fafafa]">
+            <span className="text-xs font-medium text-[#999] uppercase tracking-wide">Added to Watchlist</span>
+            <span className="text-xs text-[#ccc]">{discovered.length} stocks</span>
           </div>
           <div className="max-h-[400px] overflow-y-auto">
             {discovered.length === 0 ? (
-              <div className="text-[11px] text-[#1a1a1a] text-center py-12">
-                No stocks discovered yet
-              </div>
+              <div className="text-sm text-[#ccc] text-center py-12">No stocks discovered yet</div>
             ) : (
-              <div className="divide-y divide-[#0a0a0a]">
+              <div className="divide-y divide-[#f0f0f0]">
                 {discovered.map((w) => (
-                  <div key={w.id} className="px-4 py-3 hover:bg-[#040404]">
+                  <div key={w.id} className="px-5 py-3 hover:bg-[#fafafa]">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-[12px] font-bold text-[#e8e8e8]">{w.symbol}</span>
-                        <span className={`text-[8px] tracking-[0.08em] px-1.5 py-0.5 ${
+                        <span className="text-sm font-bold text-[#111]">{w.symbol}</span>
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                           w.source === "ai_approved"
-                            ? "text-[#e8e8e8] bg-[#111] border border-[#252525]"
-                            : "text-[#555] bg-[#0a0a0a] border border-[#161616]"
+                            ? "bg-[#eff6ff] text-[#2563eb]"
+                            : "bg-[#f5f5f5] text-[#999]"
                         }`}>
-                          {w.source === "ai_approved" ? "AI APPROVED" : "SCORE"}
+                          {w.source === "ai_approved" ? "AI Approved" : "Score"}
                         </span>
                       </div>
-                      <span className="text-[10px] text-[#555] tabular-nums">{w.score.toFixed(1)}</span>
+                      <span className="text-sm text-[#555] tabular-nums">{w.score.toFixed(1)}</span>
                     </div>
-                    {w.reason && (
-                      <p className="text-[10px] text-[#444] mt-1">{w.reason}</p>
-                    )}
+                    {w.reason && <p className="text-xs text-[#999] mt-1">{w.reason}</p>}
                     {w.discovery_sources && w.discovery_sources.length > 0 && (
                       <div className="flex gap-1 mt-1.5">
                         {w.discovery_sources.map((s) => (
-                          <span key={s} className="text-[8px] px-1 py-0 bg-[#060606] border border-[#111] text-[#333]">
-                            {s}
-                          </span>
+                          <span key={s} className="text-[11px] px-1.5 py-0.5 rounded bg-[#f5f5f5] text-[#999]">{s}</span>
                         ))}
                       </div>
                     )}
-                    <div className="text-[9px] text-[#1a1a1a] mt-1">
-                      added {timeAgo(w.added_at)}
-                    </div>
+                    <div className="text-[11px] text-[#ccc] mt-1">added {timeAgo(w.added_at)}</div>
                   </div>
                 ))}
               </div>
@@ -184,77 +149,54 @@ export default function RedditPage() {
         </div>
       </div>
 
-      {/* ── AI Evaluation Log ─────────────────────── */}
-      <div className="border border-[#161616]">
-        <div className="px-4 py-2 border-b border-[#161616] bg-[#040404] flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] tracking-[0.1em] text-[#888]">◈ AI</span>
-            <span className="text-[10px] tracking-[0.1em] text-[#555]">WATCHLIST EVALUATION</span>
-          </div>
-          <span className="text-[9px] text-[#2a2a2a]">{aiEvals.length + aiResponses.length} events</span>
+      {/* AI Evaluation */}
+      <div className="rounded-lg border border-[#e5e5e5]">
+        <div className="px-5 py-3 border-b border-[#f0f0f0] flex items-center justify-between bg-[#fafafa]">
+          <span className="text-xs font-medium text-[#999] uppercase tracking-wide">AI Watchlist Evaluation</span>
+          <span className="text-xs text-[#ccc]">{aiEvals.length + aiResponses.length} events</span>
         </div>
         <div className="max-h-[500px] overflow-y-auto">
           {aiEvals.length === 0 && aiResponses.length === 0 ? (
-            <div className="text-[11px] text-[#1a1a1a] text-center py-12">
-              No AI evaluations yet — next scan cycle will trigger one
-            </div>
+            <div className="text-sm text-[#ccc] text-center py-12">No AI evaluations yet</div>
           ) : (
-            <div className="divide-y divide-[#0a0a0a]">
-              {/* Show AI responses (decisions) first */}
+            <div className="divide-y divide-[#f0f0f0]">
               {aiResponses.map((e) => {
                 const approved = (e.metadata?.approved as string[]) || [];
                 return (
-                  <div
-                    key={e.id}
-                    className="px-4 py-3 hover:bg-[#040404] cursor-pointer"
-                    onClick={() => setExpandedId(expandedId === e.id ? null : e.id)}
-                  >
+                  <div key={e.id} className="px-5 py-3 hover:bg-[#fafafa] cursor-pointer" onClick={() => setExpandedId(expandedId === e.id ? null : e.id)}>
                     <div className="flex items-center justify-between mb-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] text-[#e8e8e8]">← RESPONSE</span>
-                        <span className="text-[11px] text-[#888]">{e.title}</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-[#eff6ff] text-[#2563eb] font-medium">Response</span>
+                        <span className="text-sm text-[#555]">{e.title}</span>
                       </div>
-                      <span className="text-[9px] text-[#2a2a2a]">{timeAgo(e.created_at)}</span>
+                      <span className="text-xs text-[#ccc]">{timeAgo(e.created_at)}</span>
                     </div>
                     {approved.length > 0 && (
                       <div className="flex gap-1.5 mt-1.5">
                         {approved.map((sym) => (
-                          <span key={sym} className="text-[10px] px-1.5 py-0.5 font-bold text-[#e8e8e8] bg-[#111] border border-[#252525]">
-                            {sym}
-                          </span>
+                          <span key={sym} className="text-xs px-2 py-0.5 font-bold text-[#111] bg-[#f0f0f0] rounded-md">{sym}</span>
                         ))}
                       </div>
                     )}
                     {expandedId === e.id && e.detail && (
-                      <div className="text-[10px] text-[#444] leading-[1.6] mt-3 bg-[#030303] border border-[#111] p-3 max-h-[300px] overflow-y-auto whitespace-pre-wrap">
+                      <div className="text-xs text-[#555] leading-relaxed mt-3 bg-[#f8f8f8] border border-[#e5e5e5] rounded-md p-3 max-h-[300px] overflow-y-auto whitespace-pre-wrap">
                         {e.detail}
                       </div>
                     )}
                   </div>
                 );
               })}
-
-              {/* Show AI requests (prompts) */}
               {aiEvals.map((e) => (
-                <div
-                  key={e.id}
-                  className="px-4 py-3 hover:bg-[#040404] cursor-pointer"
-                  onClick={() => setExpandedId(expandedId === e.id ? null : e.id)}
-                >
-                  <div className="flex items-center justify-between mb-1">
+                <div key={e.id} className="px-5 py-3 hover:bg-[#fafafa] cursor-pointer" onClick={() => setExpandedId(expandedId === e.id ? null : e.id)}>
+                  <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-[#555]">→ PROMPT</span>
-                      <span className="text-[11px] text-[#555]">{e.title}</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full bg-[#f5f5f5] text-[#999] font-medium">Prompt</span>
+                      <span className="text-sm text-[#999]">{e.title}</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[8px] text-[#2a2a2a]">
-                        {expandedId === e.id ? "COLLAPSE" : "EXPAND"}
-                      </span>
-                      <span className="text-[9px] text-[#2a2a2a]">{timeAgo(e.created_at)}</span>
-                    </div>
+                    <span className="text-xs text-[#ccc]">{timeAgo(e.created_at)}</span>
                   </div>
                   {expandedId === e.id && e.detail && (
-                    <div className="text-[10px] text-[#333] leading-[1.6] mt-2 bg-[#030303] border border-[#111] p-3 max-h-[300px] overflow-y-auto whitespace-pre-wrap">
+                    <div className="text-xs text-[#999] leading-relaxed mt-2 bg-[#f8f8f8] border border-[#e5e5e5] rounded-md p-3 max-h-[300px] overflow-y-auto whitespace-pre-wrap">
                       {e.detail}
                     </div>
                   )}
@@ -265,17 +207,15 @@ export default function RedditPage() {
         </div>
       </div>
 
-      {/* ── Full Scan Timeline ────────────────────── */}
-      <div className="border border-[#161616]">
-        <div className="px-4 py-2 border-b border-[#161616] bg-[#040404] flex items-center justify-between">
-          <span className="text-[10px] tracking-[0.1em] text-[#555]">SCAN TIMELINE</span>
-          <span className="text-[9px] text-[#2a2a2a]">{redditScans.length} events</span>
+      {/* Scan Timeline */}
+      <div className="rounded-lg border border-[#e5e5e5]">
+        <div className="px-5 py-3 border-b border-[#f0f0f0] flex items-center justify-between bg-[#fafafa]">
+          <span className="text-xs font-medium text-[#999] uppercase tracking-wide">Scan Timeline</span>
+          <span className="text-xs text-[#ccc]">{redditScans.length} events</span>
         </div>
-        <div className="max-h-[400px] overflow-y-auto divide-y divide-[#0a0a0a]">
+        <div className="max-h-[400px] overflow-y-auto divide-y divide-[#f0f0f0]">
           {redditScans.length === 0 ? (
-            <div className="text-[11px] text-[#1a1a1a] text-center py-12">
-              No scan events recorded yet
-            </div>
+            <div className="text-sm text-[#ccc] text-center py-12">No scan events recorded yet</div>
           ) : (
             redditScans.map((e) => {
               const count = (e.metadata?.count as number) || 0;
@@ -284,57 +224,30 @@ export default function RedditPage() {
               const isResult = e.event_type === "scan_result";
 
               return (
-                <div
-                  key={e.id}
-                  className="px-4 py-3 hover:bg-[#040404] cursor-pointer"
-                  onClick={() => setExpandedId(expandedId === e.id ? null : e.id)}
-                >
+                <div key={e.id} className="px-5 py-3 hover:bg-[#fafafa] cursor-pointer" onClick={() => setExpandedId(expandedId === e.id ? null : e.id)}>
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-2">
-                      <span className={`w-[5px] h-[5px] rounded-full ${
-                        isResult ? "bg-[#3fcf6d]" : "bg-[#555]"
-                      }`} />
-                      <span className={`text-[10px] ${isResult ? "text-[#888]" : "text-[#444]"}`}>
-                        {e.title}
-                      </span>
+                      <span className={`w-2 h-2 rounded-full ${isResult ? "bg-[#16a34a]" : "bg-[#ccc]"}`} />
+                      <span className={`text-sm ${isResult ? "text-[#555]" : "text-[#999]"}`}>{e.title}</span>
                       {isResult && count > 0 && (
-                        <span className="text-[9px] text-[#555] px-1 bg-[#0a0a0a] border border-[#161616]">
-                          {count} tickers
-                        </span>
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-[#f5f5f5] text-[#999]">{count} tickers</span>
                       )}
                     </div>
-                    <span className="text-[9px] text-[#2a2a2a]">{timeAgo(e.created_at)}</span>
+                    <span className="text-xs text-[#ccc]">{timeAgo(e.created_at)}</span>
                   </div>
-
-                  {/* Show top tickers inline */}
                   {isResult && topTickers.length > 0 && (
-                    <div className="flex gap-1.5 mt-2 ml-[13px]">
+                    <div className="flex gap-1.5 mt-2 ml-4">
                       {topTickers.map((t) => (
-                        <span key={t.symbol} className="text-[9px] px-1.5 py-0.5 bg-[#080808] border border-[#141414] text-[#555]">
-                          {t.symbol} <span className="text-[#2a2a2a]">{t.score}</span>
+                        <span key={t.symbol} className="text-xs px-2 py-0.5 rounded bg-[#f5f5f5] text-[#555]">
+                          {t.symbol} <span className="text-[#ccc]">{t.score}</span>
                         </span>
                       ))}
-                      {tickers.length > 8 && (
-                        <span className="text-[9px] text-[#2a2a2a] py-0.5">+{tickers.length - 8}</span>
-                      )}
+                      {tickers.length > 8 && <span className="text-xs text-[#ccc] py-0.5">+{tickers.length - 8}</span>}
                     </div>
                   )}
-
-                  {/* Expanded detail */}
                   {expandedId === e.id && e.detail && (
-                    <div className="text-[10px] text-[#333] leading-[1.6] mt-3 ml-[13px] bg-[#030303] border border-[#111] p-3 max-h-[300px] overflow-y-auto whitespace-pre-wrap">
+                    <div className="text-xs text-[#999] leading-relaxed mt-3 ml-4 bg-[#f8f8f8] border border-[#e5e5e5] rounded-md p-3 max-h-[300px] overflow-y-auto whitespace-pre-wrap">
                       {e.detail}
-                    </div>
-                  )}
-
-                  {/* Expanded metadata */}
-                  {expandedId === e.id && e.metadata && Object.keys(e.metadata).length > 0 && (
-                    <div className="mt-2 ml-[13px] flex flex-wrap gap-1.5">
-                      {Object.entries(e.metadata).filter(([k]) => k !== "tickers").map(([key, val]) => (
-                        <span key={key} className="text-[9px] px-1.5 py-0.5 bg-[#080808] border border-[#141414] text-[#444]">
-                          {key}: {typeof val === "object" ? JSON.stringify(val) : String(val)}
-                        </span>
-                      ))}
                     </div>
                   )}
                 </div>
@@ -343,44 +256,6 @@ export default function RedditPage() {
           )}
         </div>
       </div>
-
-      {/* ── Watchlist Updates ─────────────────────── */}
-      {watchlistUpdates.length > 0 && (
-        <div className="border border-[#161616]">
-          <div className="px-4 py-2 border-b border-[#161616] bg-[#040404] flex items-center justify-between">
-            <span className="text-[10px] tracking-[0.1em] text-[#555]">WATCHLIST UPDATES</span>
-            <span className="text-[9px] text-[#2a2a2a]">{watchlistUpdates.length}</span>
-          </div>
-          <div className="max-h-[300px] overflow-y-auto divide-y divide-[#0a0a0a]">
-            {watchlistUpdates.map((e) => {
-              const added = (e.metadata?.added as string[]) || [];
-              const removed = (e.metadata?.removed as string[]) || [];
-              const total = (e.metadata?.total as number) || 0;
-              return (
-                <div key={e.id} className="px-4 py-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-[11px] text-[#888]">{e.title}</span>
-                    <span className="text-[9px] text-[#2a2a2a]">{timeAgo(e.created_at)}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-[10px]">
-                    {total > 0 && <span className="text-[#555]">{total} total</span>}
-                    {added.length > 0 && (
-                      <span className="text-[#3fcf6d]">
-                        + {added.join(", ")}
-                      </span>
-                    )}
-                    {removed.length > 0 && (
-                      <span className="text-[#e5484d]">
-                        − {removed.join(", ")}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

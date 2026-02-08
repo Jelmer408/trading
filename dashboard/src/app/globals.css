@@ -1,54 +1,54 @@
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════════
-   PRECISION MONOCHROME — Pure B&W, color only for meaning
-   Inspired by Linear, Vercel, Bloomberg Terminal
+   LIGHT THEME — White bg, black text, color for meaning
    ═══════════════════════════════════════════════════════ */
 
 :root {
-  --black: #000000;
-  --surface: #080808;
-  --panel: #060606;
-  --border: #161616;
-  --border-hover: #252525;
+  --bg: #ffffff;
+  --surface: #f8f8f8;
+  --panel: #fafafa;
+  --border: #e5e5e5;
+  --border-hover: #d4d4d4;
 
-  /* Text hierarchy: 4 levels */
-  --text-primary: #e8e8e8;
-  --text-secondary: #888888;
-  --text-muted: #555555;
-  --text-faint: #2a2a2a;
+  /* Text hierarchy */
+  --text-primary: #111111;
+  --text-secondary: #555555;
+  --text-muted: #999999;
+  --text-faint: #cccccc;
 
-  /* Semantic only — no decorative color */
-  --positive: #3fcf6d;
-  --positive-muted: #162a1d;
-  --negative: #e5484d;
-  --negative-muted: #2a1617;
-  --warning: #e5a63f;
-  --warning-muted: #2a2117;
-  --accent: #6e7681;
+  /* Semantic only */
+  --positive: #16a34a;
+  --positive-bg: #f0fdf4;
+  --negative: #dc2626;
+  --negative-bg: #fef2f2;
+  --warning: #d97706;
+  --warning-bg: #fffbeb;
+  --accent: #2563eb;
+  --accent-bg: #eff6ff;
 
-  --radius: 0px;
+  --radius: 6px;
   --font-mono: "JetBrains Mono", "Geist Mono", "SF Mono", "Fira Code", monospace;
 
   /* shadcn overrides */
-  --background: #000000;
-  --foreground: #e8e8e8;
-  --card: #060606;
-  --card-foreground: #e8e8e8;
-  --popover: #080808;
-  --popover-foreground: #e8e8e8;
-  --primary: #e8e8e8;
-  --primary-foreground: #000000;
-  --secondary: #161616;
-  --secondary-foreground: #e8e8e8;
-  --muted: #0a0a0a;
+  --background: #ffffff;
+  --foreground: #111111;
+  --card: #ffffff;
+  --card-foreground: #111111;
+  --popover: #ffffff;
+  --popover-foreground: #111111;
+  --primary: #111111;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #111111;
+  --muted: #f5f5f5;
   --muted-foreground: #555555;
-  --accent: #0a0a0a;
-  --accent-foreground: #e8e8e8;
-  --destructive: #e5484d;
-  --border: #161616;
-  --input: #161616;
-  --ring: #555555;
+  --accent: #f5f5f5;
+  --accent-foreground: #111111;
+  --destructive: #dc2626;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #2563eb;
 }
 
 @layer base {
@@ -58,19 +58,19 @@
   }
 
   body {
-    background: var(--black);
+    background: var(--bg);
     color: var(--text-primary);
     font-family: var(--font-mono);
     font-size: 13px;
-    line-height: 1.5;
+    line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     font-feature-settings: "tnum" 1;
     font-variant-numeric: tabular-nums;
   }
 
   ::selection {
-    background: #e8e8e8;
-    color: #000000;
+    background: #2563eb;
+    color: #ffffff;
   }
 
   ::-webkit-scrollbar {
@@ -81,67 +81,12 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #1a1a1a;
+    background: #d4d4d4;
+    border-radius: 3px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #2a2a2a;
+    background: #a3a3a3;
   }
-}
-
-/* ── Utility classes ────────────────────────────────── */
-
-.label {
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-.value-lg {
-  font-size: 1.5rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.2;
-  color: var(--text-primary);
-}
-
-.value-md {
-  font-size: 1rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: var(--text-primary);
-}
-
-/* ── Panel system ─────────────────────────────────── */
-
-.panel {
-  background: var(--panel);
-  border: 1px solid var(--border);
-}
-
-.panel-header {
-  padding: 10px 16px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.panel-body {
-  padding: 16px;
-}
-
-/* ── Grid system ────────────────────────────────────── */
-
-.grid-1px {
-  display: grid;
-  gap: 1px;
-  background: var(--border);
-}
-
-.grid-1px > * {
-  background: var(--black);
 }
 
 /* ── Status indicator ──────────────────────────────── */

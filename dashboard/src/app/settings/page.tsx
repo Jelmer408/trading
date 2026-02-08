@@ -6,107 +6,87 @@ export default function SystemPage() {
   const { data: bot, error } = useBotStatus();
 
   const infra = [
-    { label: "BOT HOST", value: "Fly.io (ewr)", url: "https://trading-symxyw.fly.dev" },
-    { label: "DASHBOARD", value: "Vercel", url: null },
-    { label: "DATABASE", value: "Supabase (PostgreSQL)", url: null },
-    { label: "BROKER", value: "Alpaca Markets", url: null },
-    { label: "AI ENGINE", value: "Google Gemini 2.5 Pro", url: null },
-    { label: "NEWS AI", value: "Gemini Flash", url: null },
-    { label: "DATA FEED", value: "PlusE Finance + Alpaca WS", url: null },
+    { label: "Bot Host", value: "Fly.io (ewr)" },
+    { label: "Dashboard", value: "Vercel" },
+    { label: "Database", value: "Supabase (PostgreSQL)" },
+    { label: "Broker", value: "Alpaca Markets" },
+    { label: "AI Engine", value: "Google Gemini 3 Pro" },
+    { label: "News AI", value: "Gemini Flash" },
+    { label: "Data Feed", value: "PlusE Finance + Alpaca WS" },
   ];
 
   const riskParams = [
-    { label: "MAX POSITION SIZE", value: "5% of portfolio", env: "MAX_POSITION_PCT" },
-    { label: "MAX CONCURRENT", value: "3 positions", env: "MAX_POSITIONS" },
-    { label: "STOP LOSS", value: "−2%", env: "STOP_LOSS_PCT" },
-    { label: "TAKE PROFIT", value: "+4%", env: "TAKE_PROFIT_PCT" },
-    { label: "DAILY LOSS LIMIT", value: "−3% (halts)", env: "DAILY_LOSS_LIMIT_PCT" },
-    { label: "ORDER TYPE", value: "Limit only", env: "—" },
+    { label: "Max Position Size", value: "5% of portfolio" },
+    { label: "Max Concurrent", value: "3 positions" },
+    { label: "Stop Loss", value: "−2%" },
+    { label: "Take Profit", value: "+4%" },
+    { label: "Daily Loss Limit", value: "−3% (halts trading)" },
+    { label: "Order Type", value: "Limit only" },
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div>
-        <h2 className="text-sm font-bold tracking-[0.08em] text-[#e8e8e8]">System</h2>
-        <p className="text-[10px] text-[#333] tracking-[0.04em]">
-          Infrastructure & configuration
-        </p>
+        <h2 className="text-lg font-bold text-[#111]">System</h2>
+        <p className="text-sm text-[#999]">Infrastructure & configuration</p>
       </div>
 
-      <div className="border border-[#161616]">
-        <div className="px-4 py-2 border-b border-[#161616] bg-[#040404] flex items-center justify-between">
-          <span className="text-[10px] tracking-[0.1em] text-[#555]">BOT CONNECTION</span>
+      <div className="rounded-lg border border-[#e5e5e5]">
+        <div className="px-5 py-3 border-b border-[#f0f0f0] flex items-center justify-between bg-[#fafafa]">
+          <span className="text-xs font-medium text-[#999] uppercase tracking-wide">Bot Connection</span>
           <div className="flex items-center gap-2">
             <div
-              className={`w-[5px] h-[5px] rounded-full ${bot?.status === "online" ? "bg-[#3fcf6d]" : "bg-[#e5484d]"}`}
+              className={`w-2 h-2 rounded-full ${bot?.status === "online" ? "bg-[#16a34a]" : "bg-[#dc2626]"}`}
               style={{ animation: "blink 2s ease-in-out infinite" }}
             />
-            <span className={`text-[10px] ${bot?.status === "online" ? "text-[#888]" : "text-[#e5484d]"}`}>
-              {bot?.status === "online" ? "CONNECTED" : "DISCONNECTED"}
+            <span className={`text-xs font-medium ${bot?.status === "online" ? "text-[#16a34a]" : "text-[#dc2626]"}`}>
+              {bot?.status === "online" ? "Connected" : "Disconnected"}
             </span>
           </div>
         </div>
-        <table className="w-full text-[11px]">
-          <tbody>
-            <tr className="border-b border-[#0a0a0a]">
-              <td className="px-4 py-2 text-[9px] tracking-[0.1em] text-[#333] w-[140px]">STATUS</td>
-              <td className={`px-4 py-2 ${bot?.status === "online" ? "text-[#888]" : "text-[#e5484d]"}`}>
-                {bot?.status?.toUpperCase() || "UNKNOWN"}
-              </td>
-            </tr>
-            <tr className="border-b border-[#0a0a0a]">
-              <td className="px-4 py-2 text-[9px] tracking-[0.1em] text-[#333]">UPTIME</td>
-              <td className="px-4 py-2 text-[#888]">{bot?.uptime || "—"}</td>
-            </tr>
-            <tr className="border-b border-[#0a0a0a]">
-              <td className="px-4 py-2 text-[9px] tracking-[0.1em] text-[#333]">WATCHLIST</td>
-              <td className="px-4 py-2 text-[#888]">{bot?.config?.watchlist?.join(", ") || "—"}</td>
-            </tr>
-            <tr className="border-b border-[#0a0a0a]">
-              <td className="px-4 py-2 text-[9px] tracking-[0.1em] text-[#333]">LAST ERROR</td>
-              <td className="px-4 py-2 text-[#e5484d]">{bot?.errors?.last_error || "None"}</td>
-            </tr>
-            {error && (
-              <tr className="border-b border-[#0a0a0a]">
-                <td className="px-4 py-2 text-[9px] tracking-[0.1em] text-[#333]">CONN ERROR</td>
-                <td className="px-4 py-2 text-[#e5484d]">{error}</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        <div className="divide-y divide-[#f0f0f0]">
+          {[
+            { label: "Status", value: bot?.status?.toUpperCase() || "UNKNOWN", highlight: bot?.status !== "online" },
+            { label: "Uptime", value: bot?.uptime || "—" },
+            { label: "Watchlist", value: bot?.config?.watchlist?.join(", ") || "—" },
+            { label: "Last Error", value: bot?.errors?.last_error || "None", highlight: !!bot?.errors?.last_error },
+            ...(error ? [{ label: "Connection Error", value: error, highlight: true }] : []),
+          ].map((item) => (
+            <div key={item.label} className="flex items-center px-5 py-3">
+              <span className="text-xs text-[#999] w-[160px] shrink-0">{item.label}</span>
+              <span className={`text-sm ${item.highlight ? "text-[#dc2626]" : "text-[#555]"}`}>{item.value}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <div className="border border-[#161616]">
-          <div className="px-4 py-2 border-b border-[#161616] bg-[#040404]">
-            <span className="text-[10px] tracking-[0.1em] text-[#555]">INFRASTRUCTURE</span>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="rounded-lg border border-[#e5e5e5]">
+          <div className="px-5 py-3 border-b border-[#f0f0f0] bg-[#fafafa]">
+            <span className="text-xs font-medium text-[#999] uppercase tracking-wide">Infrastructure</span>
           </div>
-          <table className="w-full text-[11px]">
-            <tbody>
-              {infra.map((item) => (
-                <tr key={item.label} className="border-b border-[#0a0a0a]">
-                  <td className="px-4 py-2 text-[9px] tracking-[0.1em] text-[#333] w-[140px]">{item.label}</td>
-                  <td className="px-4 py-2 text-[#888]">{item.value}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="divide-y divide-[#f0f0f0]">
+            {infra.map((item) => (
+              <div key={item.label} className="flex items-center px-5 py-3">
+                <span className="text-xs text-[#999] w-[140px] shrink-0">{item.label}</span>
+                <span className="text-sm text-[#555]">{item.value}</span>
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div className="border border-[#161616]">
-          <div className="px-4 py-2 border-b border-[#161616] bg-[#040404]">
-            <span className="text-[10px] tracking-[0.1em] text-[#555]">RISK PARAMETERS</span>
+        <div className="rounded-lg border border-[#e5e5e5]">
+          <div className="px-5 py-3 border-b border-[#f0f0f0] bg-[#fafafa]">
+            <span className="text-xs font-medium text-[#999] uppercase tracking-wide">Risk Parameters</span>
           </div>
-          <table className="w-full text-[11px]">
-            <tbody>
-              {riskParams.map((item) => (
-                <tr key={item.label} className="border-b border-[#0a0a0a]">
-                  <td className="px-4 py-2 text-[9px] tracking-[0.1em] text-[#333] w-[160px]">{item.label}</td>
-                  <td className="px-4 py-2 font-bold text-[#e8e8e8]">{item.value}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="divide-y divide-[#f0f0f0]">
+            {riskParams.map((item) => (
+              <div key={item.label} className="flex items-center px-5 py-3">
+                <span className="text-xs text-[#999] w-[160px] shrink-0">{item.label}</span>
+                <span className="text-sm font-semibold text-[#111]">{item.value}</span>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

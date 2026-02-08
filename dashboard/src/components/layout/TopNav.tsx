@@ -5,13 +5,13 @@ import { usePathname } from "next/navigation";
 import { useBotStatus } from "@/hooks/useBotStatus";
 
 const navItems = [
-  { href: "/", label: "OVERVIEW" },
-  { href: "/charts", label: "CHARTS" },
-  { href: "/trades", label: "TRADES" },
-  { href: "/reddit", label: "REDDIT" },
-  { href: "/news", label: "NEWS" },
-  { href: "/performance", label: "METRICS" },
-  { href: "/settings", label: "SYSTEM" },
+  { href: "/", label: "Overview" },
+  { href: "/charts", label: "Charts" },
+  { href: "/trades", label: "Trades" },
+  { href: "/reddit", label: "Reddit" },
+  { href: "/news", label: "News" },
+  { href: "/performance", label: "Metrics" },
+  { href: "/settings", label: "System" },
 ];
 
 export default function TopNav() {
@@ -21,17 +21,17 @@ export default function TopNav() {
   const isOnline = status?.status === "online";
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-[#000] border-b border-[#161616]">
-      <div className="flex items-center justify-between px-4 h-10 border-b border-[#0e0e0e]">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#e5e5e5]">
+      <div className="flex items-center justify-between px-5 h-12">
         <div className="flex items-center gap-3">
-          <span className="text-[#e8e8e8] font-bold text-sm tracking-[0.08em]">
-            CANDLEBOT
+          <span className="text-[#111] font-bold text-sm tracking-tight">
+            CandleBot
           </span>
-          <span className="text-[#2a2a2a] text-[10px] tracking-[0.08em] hidden sm:inline">
-            AUTONOMOUS TRADING
+          <span className="text-[#999] text-xs hidden sm:inline">
+            Autonomous Trading
           </span>
         </div>
-        <div className="flex items-center gap-4 text-[10px] tracking-[0.08em] text-[#555]">
+        <div className="flex items-center gap-4 text-xs text-[#555]">
           {status && (
             <>
               <span className="hidden md:inline">{status.uptime}</span>
@@ -42,17 +42,17 @@ export default function TopNav() {
           )}
           <div className="flex items-center gap-2">
             <div
-              className={`w-[5px] h-[5px] rounded-full ${isOnline ? "bg-[#3fcf6d]" : "bg-[#e5484d]"}`}
+              className={`w-2 h-2 rounded-full ${isOnline ? "bg-[#16a34a]" : "bg-[#dc2626]"}`}
               style={{ animation: "blink 2s ease-in-out infinite" }}
             />
-            <span className={isOnline ? "text-[#888]" : "text-[#e5484d]"}>
-              {isOnline ? "ONLINE" : "OFFLINE"}
+            <span className={isOnline ? "text-[#16a34a] font-medium" : "text-[#dc2626] font-medium"}>
+              {isOnline ? "Online" : "Offline"}
             </span>
           </div>
         </div>
       </div>
 
-      <nav className="flex items-center px-4 h-[36px] gap-0 overflow-x-auto">
+      <nav className="flex items-center px-5 h-10 gap-1 overflow-x-auto border-t border-[#f0f0f0]">
         {navItems.map((item) => {
           const active = pathname === item.href;
           return (
@@ -60,12 +60,11 @@ export default function TopNav() {
               key={item.href}
               href={item.href}
               className={`
-                px-4 h-full flex items-center text-[10px] tracking-[0.1em]
-                border-r border-[#161616] transition-colors whitespace-nowrap
+                px-3 py-1.5 text-xs rounded-md transition-colors whitespace-nowrap
                 ${
                   active
-                    ? "text-[#e8e8e8] bg-[#0a0a0a] border-b border-b-[#e8e8e8]"
-                    : "text-[#555] hover:text-[#999] hover:bg-[#060606]"
+                    ? "text-[#111] bg-[#f0f0f0] font-medium"
+                    : "text-[#999] hover:text-[#555] hover:bg-[#f8f8f8]"
                 }
               `}
             >
