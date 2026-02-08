@@ -1,52 +1,54 @@
 @import "tailwindcss";
 
 /* ═══════════════════════════════════════════════════════
-   BRUTALIST CONTROL PANEL — GLOBALS
-   No roundness. No shadows. Raw structure. Phosphor green.
+   PRECISION MONOCHROME — Pure B&W, color only for meaning
+   Inspired by Linear, Vercel, Bloomberg Terminal
    ═══════════════════════════════════════════════════════ */
 
 :root {
   --black: #000000;
-  --surface: #0a0a0a;
-  --panel: #080808;
-  --border: #1a1a1a;
-  --border-bright: #2a2a2a;
-  --text-primary: #cccccc;
-  --text-secondary: #666666;
-  --text-muted: #444444;
+  --surface: #080808;
+  --panel: #060606;
+  --border: #161616;
+  --border-hover: #252525;
+
+  /* Text hierarchy: 4 levels */
+  --text-primary: #e8e8e8;
+  --text-secondary: #888888;
+  --text-muted: #555555;
   --text-faint: #2a2a2a;
-  --green: #00ff41;
-  --green-dim: #00cc33;
-  --green-muted: #003d0f;
-  --red: #ff0040;
-  --red-muted: #3d000f;
-  --amber: #f0b400;
-  --amber-muted: #3d2e00;
-  --blue: #0088ff;
-  --blue-muted: #002244;
+
+  /* Semantic only — no decorative color */
+  --positive: #3fcf6d;
+  --positive-muted: #162a1d;
+  --negative: #e5484d;
+  --negative-muted: #2a1617;
+  --warning: #e5a63f;
+  --warning-muted: #2a2117;
+  --accent: #6e7681;
 
   --radius: 0px;
   --font-mono: "JetBrains Mono", "Geist Mono", "SF Mono", "Fira Code", monospace;
 
   /* shadcn overrides */
   --background: #000000;
-  --foreground: #cccccc;
-  --card: #080808;
-  --card-foreground: #cccccc;
-  --popover: #0a0a0a;
-  --popover-foreground: #cccccc;
-  --primary: #00ff41;
+  --foreground: #e8e8e8;
+  --card: #060606;
+  --card-foreground: #e8e8e8;
+  --popover: #080808;
+  --popover-foreground: #e8e8e8;
+  --primary: #e8e8e8;
   --primary-foreground: #000000;
-  --secondary: #1a1a1a;
-  --secondary-foreground: #cccccc;
-  --muted: #111111;
+  --secondary: #161616;
+  --secondary-foreground: #e8e8e8;
+  --muted: #0a0a0a;
   --muted-foreground: #555555;
-  --accent: #111111;
-  --accent-foreground: #00ff41;
-  --destructive: #ff0040;
-  --border: #1a1a1a;
-  --input: #1a1a1a;
-  --ring: #00ff41;
+  --accent: #0a0a0a;
+  --accent-foreground: #e8e8e8;
+  --destructive: #e5484d;
+  --border: #161616;
+  --input: #161616;
+  --ring: #555555;
 }
 
 @layer base {
@@ -67,24 +69,22 @@
   }
 
   ::selection {
-    background: var(--green);
-    color: var(--black);
+    background: #e8e8e8;
+    color: #000000;
   }
 
-  /* Scrollbar */
   ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
   }
   ::-webkit-scrollbar-track {
-    background: var(--black);
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #222;
-    border: none;
+    background: #1a1a1a;
   }
   ::-webkit-scrollbar-thumb:hover {
-    background: #333;
+    background: #2a2a2a;
   }
 }
 
@@ -93,9 +93,9 @@
 .label {
   font-size: 10px;
   font-weight: 500;
-  letter-spacing: 0.15em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--text-secondary);
+  color: var(--text-muted);
 }
 
 .value-lg {
@@ -103,26 +103,17 @@
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1.2;
+  color: var(--text-primary);
 }
 
 .value-md {
   font-size: 1rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+  color: var(--text-primary);
 }
 
-.text-green { color: var(--green); }
-.text-red { color: var(--red); }
-.text-amber { color: var(--amber); }
-.text-blue { color: var(--blue); }
-
-.bg-green-muted { background: var(--green-muted); }
-.bg-red-muted { background: var(--red-muted); }
-.bg-amber-muted { background: var(--amber-muted); }
-
-.border-green { border-color: var(--green) !important; }
-
-/* ── Brutalist panel ────────────────────────────────── */
+/* ── Panel system ─────────────────────────────────── */
 
 .panel {
   background: var(--panel);
@@ -153,39 +144,9 @@
   background: var(--black);
 }
 
-/* ── Status dot ─────────────────────────────────────── */
+/* ── Status indicator ──────────────────────────────── */
 
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }
-}
-
-.status-dot {
-  width: 6px;
-  height: 6px;
-  background: var(--green);
-  animation: blink 2s ease-in-out infinite;
-}
-
-.status-dot-offline {
-  width: 6px;
-  height: 6px;
-  background: var(--red);
-  animation: blink 1s ease-in-out infinite;
-}
-
-/* ── Scanline effect (subtle) ──────────────────────── */
-
-.scanlines::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background: repeating-linear-gradient(
-    0deg,
-    transparent,
-    transparent 2px,
-    rgba(0, 255, 65, 0.015) 2px,
-    rgba(0, 255, 65, 0.015) 4px
-  );
 }

@@ -54,7 +54,7 @@ const CandlestickChart = forwardRef<CandlestickChartRef, CandlestickChartProps>(
       const chart = createChart(chartContainerRef.current, {
         layout: {
           background: { type: ColorType.Solid, color: "#000000" },
-          textColor: "#444",
+          textColor: "#2a2a2a",
           fontFamily: "JetBrains Mono, monospace",
           fontSize: 10,
         },
@@ -65,28 +65,28 @@ const CandlestickChart = forwardRef<CandlestickChartRef, CandlestickChartProps>(
         width: chartContainerRef.current.clientWidth,
         height,
         crosshair: {
-          vertLine: { color: "#222", width: 1, style: 2 },
-          horzLine: { color: "#222", width: 1, style: 2 },
+          vertLine: { color: "#1a1a1a", width: 1, style: 2 },
+          horzLine: { color: "#1a1a1a", width: 1, style: 2 },
         },
         timeScale: {
-          borderColor: "#1a1a1a",
+          borderColor: "#161616",
           timeVisible: true,
           secondsVisible: false,
         },
         rightPriceScale: {
-          borderColor: "#1a1a1a",
+          borderColor: "#161616",
         },
       });
 
       chartRef.current = chart;
 
       const candleSeries = chart.addSeries(CandlestickSeries, {
-        upColor: "#00ff41",
-        downColor: "#ff0040",
-        borderDownColor: "#ff0040",
-        borderUpColor: "#00ff41",
-        wickDownColor: "#ff004066",
-        wickUpColor: "#00ff4166",
+        upColor: "#e8e8e8",
+        downColor: "#555555",
+        borderDownColor: "#555555",
+        borderUpColor: "#e8e8e8",
+        wickDownColor: "#333333",
+        wickUpColor: "#999999",
       });
       candleSeriesRef.current = candleSeries;
 
@@ -112,7 +112,7 @@ const CandlestickChart = forwardRef<CandlestickChartRef, CandlestickChartProps>(
         const volumeData = candles.map((c) => ({
           time: (new Date(c.timestamp).getTime() / 1000) as number,
           value: c.volume,
-          color: c.close >= c.open ? "#00ff4120" : "#ff004020",
+          color: c.close >= c.open ? "#e8e8e810" : "#55555510",
         }));
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -159,7 +159,7 @@ const CandlestickChart = forwardRef<CandlestickChartRef, CandlestickChartProps>(
             volumeSeries.update({
               time,
               value: c.volume,
-              color: c.close >= c.open ? "#00ff4120" : "#ff004020",
+              color: c.close >= c.open ? "#e8e8e810" : "#55555510",
             } as any);
           }
         )

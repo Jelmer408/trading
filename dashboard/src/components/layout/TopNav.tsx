@@ -8,6 +8,7 @@ const navItems = [
   { href: "/", label: "OVERVIEW" },
   { href: "/charts", label: "CHARTS" },
   { href: "/trades", label: "TRADES" },
+  { href: "/news", label: "NEWS" },
   { href: "/performance", label: "METRICS" },
   { href: "/settings", label: "SYSTEM" },
 ];
@@ -19,44 +20,38 @@ export default function TopNav() {
   const isOnline = status?.status === "online";
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-[#000] border-b border-[#1a1a1a]">
-      {/* Top strip */}
-      <div className="flex items-center justify-between px-4 h-10 border-b border-[#111]">
+    <header className="fixed top-0 left-0 right-0 z-50 bg-[#000] border-b border-[#161616]">
+      <div className="flex items-center justify-between px-4 h-10 border-b border-[#0e0e0e]">
         <div className="flex items-center gap-3">
-          <span className="text-[#00ff41] font-bold text-sm tracking-[0.15em]">
-            /// CANDLEBOT
+          <span className="text-[#e8e8e8] font-bold text-sm tracking-[0.08em]">
+            CANDLEBOT
           </span>
-          <span className="text-[#333] text-[10px] tracking-[0.1em] hidden sm:inline">
-            AUTONOMOUS TRADING SYSTEM
+          <span className="text-[#2a2a2a] text-[10px] tracking-[0.08em] hidden sm:inline">
+            AUTONOMOUS TRADING
           </span>
         </div>
-        <div className="flex items-center gap-4 text-[10px] tracking-[0.1em] text-[#555]">
+        <div className="flex items-center gap-4 text-[10px] tracking-[0.08em] text-[#555]">
           {status && (
             <>
-              <span className="hidden md:inline">
-                UPTIME {status.uptime}
-              </span>
+              <span className="hidden md:inline">{status.uptime}</span>
               <span className="hidden lg:inline">
-                BARS {status.activity.bars_received.toLocaleString()}
+                {status.activity.bars_received.toLocaleString()} bars
               </span>
             </>
           )}
           <div className="flex items-center gap-2">
             <div
-              className={`w-[6px] h-[6px] ${
-                isOnline ? "bg-[#00ff41]" : "bg-[#ff0040]"
-              }`}
+              className={`w-[5px] h-[5px] rounded-full ${isOnline ? "bg-[#3fcf6d]" : "bg-[#e5484d]"}`}
               style={{ animation: "blink 2s ease-in-out infinite" }}
             />
-            <span className={isOnline ? "text-[#00ff41]" : "text-[#ff0040]"}>
+            <span className={isOnline ? "text-[#888]" : "text-[#e5484d]"}>
               {isOnline ? "ONLINE" : "OFFLINE"}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Nav tabs */}
-      <nav className="flex items-center px-4 h-[38px] gap-0 overflow-x-auto">
+      <nav className="flex items-center px-4 h-[36px] gap-0 overflow-x-auto">
         {navItems.map((item) => {
           const active = pathname === item.href;
           return (
@@ -64,12 +59,12 @@ export default function TopNav() {
               key={item.href}
               href={item.href}
               className={`
-                px-4 h-full flex items-center text-[11px] tracking-[0.12em]
-                border-r border-[#1a1a1a] transition-colors whitespace-nowrap
+                px-4 h-full flex items-center text-[10px] tracking-[0.1em]
+                border-r border-[#161616] transition-colors whitespace-nowrap
                 ${
                   active
-                    ? "text-[#00ff41] bg-[#001a08] border-b-2 border-b-[#00ff41]"
-                    : "text-[#555] hover:text-[#999] hover:bg-[#0a0a0a]"
+                    ? "text-[#e8e8e8] bg-[#0a0a0a] border-b border-b-[#e8e8e8]"
+                    : "text-[#555] hover:text-[#999] hover:bg-[#060606]"
                 }
               `}
             >
