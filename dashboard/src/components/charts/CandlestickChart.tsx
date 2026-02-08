@@ -123,9 +123,10 @@ const CandlestickChart = forwardRef<CandlestickChartRef, CandlestickChartProps>(
         setLoading(false);
       });
 
-      // Resize handler
+      // Resize handler with disposed guard
+      let disposed = false;
       const handleResize = () => {
-        if (chartContainerRef.current) {
+        if (!disposed && chartContainerRef.current) {
           chart.applyOptions({ width: chartContainerRef.current.clientWidth });
         }
       };
@@ -143,6 +144,7 @@ const CandlestickChart = forwardRef<CandlestickChartRef, CandlestickChartProps>(
             filter: `symbol=eq.${symbol}`,
           },
           (payload) => {
+            if (disposed) return;
             const c = payload.new as Candle;
             const time = (new Date(c.timestamp).getTime() / 1000) as number;
 
@@ -166,6 +168,7 @@ const CandlestickChart = forwardRef<CandlestickChartRef, CandlestickChartProps>(
         .subscribe();
 
       return () => {
+        disposed = true;
         window.removeEventListener("resize", handleResize);
         supabase.removeChannel(channel);
         chart.remove();

@@ -57,14 +57,16 @@ export default function PnLCurve({ data, height = 200 }: PnLCurveProps) {
     series.setData(chartData as any);
     chart.timeScale().fitContent();
 
+    let disposed = false;
     const handleResize = () => {
-      if (containerRef.current) {
+      if (!disposed && containerRef.current) {
         chart.applyOptions({ width: containerRef.current.clientWidth });
       }
     };
     window.addEventListener("resize", handleResize);
 
     return () => {
+      disposed = true;
       window.removeEventListener("resize", handleResize);
       chart.remove();
     };
