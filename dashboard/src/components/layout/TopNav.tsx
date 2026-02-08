@@ -8,6 +8,7 @@ const navItems = [
   { href: "/", label: "OVERVIEW" },
   { href: "/charts", label: "CHARTS" },
   { href: "/trades", label: "TRADES" },
+  { href: "/reddit", label: "REDDIT" },
   { href: "/news", label: "NEWS" },
   { href: "/performance", label: "METRICS" },
   { href: "/settings", label: "SYSTEM" },
@@ -35,7 +36,7 @@ export default function TopNav() {
             <>
               <span className="hidden md:inline">{status.uptime}</span>
               <span className="hidden lg:inline">
-                {status.activity.bars_received.toLocaleString()} bars
+                {status?.activity?.bars_received?.toLocaleString() ?? "0"} bars
               </span>
             </>
           )}
