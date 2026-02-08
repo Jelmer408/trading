@@ -68,7 +68,12 @@ export default function PnLCurve({ data, height = 200 }: PnLCurveProps) {
     return () => {
       disposed = true;
       window.removeEventListener("resize", handleResize);
-      try { chart.remove(); } catch { /* already disposed */ }
+      if (containerRef.current) {
+        containerRef.current.style.display = "none";
+      }
+      requestAnimationFrame(() => {
+        try { chart.remove(); } catch { /* already disposed */ }
+      });
     };
   }, [data, height]);
 
