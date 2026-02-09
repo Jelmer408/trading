@@ -266,6 +266,62 @@ def cancel_order(order_id: str) -> None:
     log.info(f"Order cancelled: {order_id}")
 
 
+def cancel_open_orders_for_symbol(symbol: str) -> int:
+    """Cancel all open orders for a given symbol. Returns count cancelled."""
+    orders = get_open_orders()
+    cancelled = 0
+    client = get_trading_client()
+    for o in orders:
+        if o["symbol"] == symbol:
+            try:
+                client.cancel_order_by_id(o["order_id"])
+                cancelled += 1
+            except Exception as e:
+                log.warning(f"Failed to cancel order {o['order_id']}: {e}")
+    if cancelled:
+        log.info(f"Cancelled {cancelled} open orders for {symbol}")
+    return cancelled
+
+
+def replace_stop_order(
+    symbol: str,
+    side: str,
+    qty: float,
+    new_stop_loss: float,
+    new_take_profit: float,
+) -> dict | None:
+    """
+    Cancel existing exit orders for a symbol and place new OCO exit
+    with updated stop-loss and take-profit levels.
+
+    This is how we "move" the server-side stop: cancel old -> place new.
+    """
+    try:
+        cancelled = cancel_open_orders_for_symbol(symbol)
+        if cancelled == 0:
+            log.warning(f"No orders to replace for {symbol}")
+
+        # Small delay to let cancellations settle
+        import time
+        time.sleep(0.3)
+
+        result = place_oco_exit(
+            symbol=symbol,
+            qty=qty,
+            side=side,
+            stop_loss=new_stop_loss,
+            take_profit=new_take_profit,
+        )
+        log.info(
+            f"Replaced stops for {symbol}: "
+            f"SL=${new_stop_loss:.2f} TP=${new_take_profit:.2f}"
+        )
+        return result
+    except Exception as e:
+        log.error(f"Failed to replace stops for {symbol}: {e}")
+        return None
+
+
 def get_order(order_id: str) -> dict:
     """Get order details."""
     client = get_trading_client()

@@ -369,9 +369,9 @@ async def snapshot_loop() -> None:
         except Exception as e:
             log.error(f"EOD liquidation check failed: {e}")
 
-        # Wait 30 seconds before next check
+        # Wait 10 seconds before next check (fast enough for trailing stops)
         try:
-            await asyncio.wait_for(_shutdown.wait(), timeout=30)
+            await asyncio.wait_for(_shutdown.wait(), timeout=10)
             break
         except asyncio.TimeoutError:
             pass
