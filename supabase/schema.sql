@@ -137,6 +137,42 @@ CREATE TABLE IF NOT EXISTS watchlist (
 
 CREATE INDEX idx_watchlist_active ON watchlist (active, score DESC);
 
+-- Cached fundamental data from Massive.com (Polygon.io)
+CREATE TABLE IF NOT EXISTS fundamentals (
+    id              BIGSERIAL PRIMARY KEY,
+    symbol          TEXT        NOT NULL UNIQUE,
+    name            TEXT,
+    description     TEXT,
+    sector          TEXT,
+    industry        TEXT,
+    homepage_url    TEXT,
+    market_cap      DOUBLE PRECISION,
+    enterprise_value DOUBLE PRECISION,
+    eps             DOUBLE PRECISION,
+    pe_ratio        DOUBLE PRECISION,
+    pb_ratio        DOUBLE PRECISION,
+    ps_ratio        DOUBLE PRECISION,
+    price_to_cash_flow DOUBLE PRECISION,
+    price_to_free_cash_flow DOUBLE PRECISION,
+    ev_to_ebitda    DOUBLE PRECISION,
+    ev_to_sales     DOUBLE PRECISION,
+    return_on_equity DOUBLE PRECISION,
+    return_on_assets DOUBLE PRECISION,
+    debt_to_equity  DOUBLE PRECISION,
+    current_ratio   DOUBLE PRECISION,
+    quick_ratio     DOUBLE PRECISION,
+    cash_ratio      DOUBLE PRECISION,
+    free_cash_flow  DOUBLE PRECISION,
+    avg_volume      DOUBLE PRECISION,
+    dividend_yield  DOUBLE PRECISION,
+    data_date       TEXT,
+    ai_summary      TEXT,
+    ai_analyzed_at  TIMESTAMPTZ,
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX idx_fundamentals_symbol ON fundamentals (symbol);
+
 -- Activity log: full agent pipeline visibility
 CREATE TABLE IF NOT EXISTS activity_log (
     id          BIGSERIAL PRIMARY KEY,
@@ -163,3 +199,4 @@ ALTER PUBLICATION supabase_realtime ADD TABLE account_snapshots;
 ALTER PUBLICATION supabase_realtime ADD TABLE news;
 ALTER PUBLICATION supabase_realtime ADD TABLE watchlist;
 ALTER PUBLICATION supabase_realtime ADD TABLE activity_log;
+ALTER PUBLICATION supabase_realtime ADD TABLE fundamentals;

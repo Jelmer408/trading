@@ -74,14 +74,25 @@ def emit(
     }
     _buffer.append(event)
 
-    # Auto-flush when buffer gets large
-    if len(_buffer) >= 5:
+    # Flush immediately for important events, otherwise at 3
+    important = event_type in ("trade_decision", "trade", "error")
+    if important or len(_buffer) >= 3:
         asyncio.ensure_future(_flush_buffer())
 
 
 async def flush() -> None:
     """Force flush any remaining events."""
     await _flush_buffer()
+
+
+async def periodic_flush(interval: float = 10.0) -> None:
+    """Background task that flushes the buffer every `interval` seconds."""
+    while True:
+        await asyncio.sleep(interval)
+        try:
+            await _flush_buffer()
+        except Exception:
+            pass
 
 
 # ── Convenience methods ──────────────────────────────────────
@@ -102,10 +113,12 @@ def scan_result(source: str, tickers: list[dict], count: int) -> None:
         {
             "symbol": t["symbol"],
             "score": t.get("score", 0),
+            "total_upvotes": t.get("total_upvotes", 0),
+            "mentions": t.get("mentions", 0),
             "sources": t.get("sources", []),
             "posts": t.get("posts", [])[:6],  # Cap posts per ticker in metadata
         }
-        for t in tickers[:25]
+        for t in tickers[:50]
     ]
     emit(
         event_type="scan_result",

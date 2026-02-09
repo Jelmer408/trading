@@ -1,22 +1,20 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useActivityFeed, useWatchlist } from "@/hooks/useRealtimeData";
+import { useTickerDrawer } from "@/context/TickerDrawerContext";
 
 // ── Types ────────────────────────────────────────────────────
 
-interface RedditPost {
-  title: string;
-  url: string;
-  sub: string;
-  time: string;
-}
-
-interface ScannedTicker {
+interface TrendingTicker {
   symbol: string;
-  score: number;
+  name?: string;
+  rank: number;
+  mentions: number;
+  upvotes: number;
+  rank_change?: number;
+  mention_change?: number;
   sources: string[];
-  posts?: RedditPost[];
 }
 
 // ── Helpers ──────────────────────────────────────────────────
@@ -29,189 +27,74 @@ function timeAgo(dateStr: string) {
   return `${Math.floor(sec / 86400)}d ago`;
 }
 
-function postTimeAgo(dateStr: string) {
-  if (!dateStr) return "";
-  try {
-    const sec = (Date.now() - new Date(dateStr).getTime()) / 1000;
-    if (sec < 3600) return `${Math.floor(sec / 60)}m`;
-    if (sec < 86400) return `${Math.floor(sec / 3600)}h`;
-    return `${Math.floor(sec / 86400)}d`;
-  } catch {
-    return "";
-  }
+/**
+ * Maps a score to a color on a red → amber → green gradient.
+ * 0-10 = red, 10-25 = amber, 25+ = green, 50+ = deep green
+ */
+function scoreColor(score: number): string {
+  if (score >= 50) return "#15803d";
+  if (score >= 25) return "#16a34a";
+  if (score >= 15) return "#65a30d";
+  if (score >= 10) return "#ca8a04";
+  if (score >= 5)  return "#d97706";
+  return "#dc2626";
 }
 
-// ── Ticker Detail Drawer ─────────────────────────────────────
+function scoreBg(score: number): string {
+  if (score >= 50) return "#f0fdf4";
+  if (score >= 25) return "#f0fdf4";
+  if (score >= 15) return "#f7fee7";
+  if (score >= 10) return "#fefce8";
+  if (score >= 5)  return "#fffbeb";
+  return "#fef2f2";
+}
 
-function TickerDrawer({
-  ticker,
-  allScans,
-  onClose,
-}: {
-  ticker: ScannedTicker;
-  allScans: ScannedTicker[][];
-  onClose: () => void;
-}) {
-  const drawerRef = useRef<HTMLDivElement>(null);
+// ── Score Badge ──────────────────────────────────────────────
 
-  // Collect all posts for this ticker across all scan results
-  const allPosts: RedditPost[] = [];
-  const seenUrls = new Set<string>();
-  for (const scan of allScans) {
-    const match = scan.find((t) => t.symbol === ticker.symbol);
-    if (match?.posts) {
-      for (const post of match.posts) {
-        if (post.url && !seenUrls.has(post.url)) {
-          allPosts.push(post);
-          seenUrls.add(post.url);
-        }
-      }
-    }
-  }
-
-  // Close on outside click
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (drawerRef.current && !drawerRef.current.contains(e.target as Node)) {
-        onClose();
-      }
-    }
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [onClose]);
-
-  // Close on Escape
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
-    document.addEventListener("keydown", handleKey);
-    return () => document.removeEventListener("keydown", handleKey);
-  }, [onClose]);
-
-  // Unique subreddits this ticker appears in
-  const subs = [...new Set(allPosts.map((p) => p.sub))];
-
+function ScoreBadge({ score }: { score: number }) {
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/10 backdrop-blur-[2px]">
-      <div
-        ref={drawerRef}
-        className="w-full max-w-lg h-full bg-white border-l border-[#e5e5e5] shadow-2xl
-                   animate-in slide-in-from-right duration-200 flex flex-col"
+    <span
+      className="text-xs font-bold tabular-nums px-2 py-0.5 rounded-md"
+      style={{ color: scoreColor(score), backgroundColor: scoreBg(score) }}
+    >
+      {score}
+    </span>
+  );
+}
+
+// ── Info Tooltip ─────────────────────────────────────────────
+
+function InfoTooltip({ text }: { text: string }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <span className="relative inline-flex">
+      <button
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
+        onClick={() => setOpen(!open)}
+        className="w-4 h-4 rounded-full border border-[#d4d4d4] text-[#999] text-[9px] font-bold flex items-center justify-center hover:border-[#999] hover:text-[#555] transition-colors cursor-help"
       >
-        {/* Header */}
-        <div className="flex-shrink-0 px-6 py-5 border-b border-[#e5e5e5]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl font-black text-[#111] tracking-tight">
-                {ticker.symbol}
-              </span>
-              <span className="text-sm font-medium text-[#555] bg-[#f0f0f0] px-2.5 py-0.5 rounded-full tabular-nums">
-                score {ticker.score}
-              </span>
+        i
+      </button>
+      {open && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 z-50">
+          <div className="bg-[#111] text-white text-[11px] leading-relaxed rounded-lg px-3 py-2.5 shadow-xl">
+            {text}
+            {/* Score legend */}
+            <div className="flex items-center gap-1 mt-2 pt-2 border-t border-white/10">
+              <div className="flex-1 h-1.5 rounded-full" style={{ background: "linear-gradient(to right, #dc2626, #d97706, #ca8a04, #65a30d, #16a34a, #15803d)" }} />
             </div>
-            <button
-              onClick={onClose}
-              className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-[#f0f0f0] transition-colors text-[#999] hover:text-[#555]"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-            </button>
+            <div className="flex justify-between text-[9px] text-white/50 mt-0.5">
+              <span>0</span>
+              <span>10</span>
+              <span>25</span>
+              <span>50+</span>
+            </div>
           </div>
-
-          {/* Sub badges */}
-          <div className="flex items-center gap-2 mt-3">
-            {subs.map((sub) => (
-              <span key={sub} className="text-[11px] px-2 py-0.5 rounded-full bg-[#f5f5f5] text-[#999] font-medium">
-                {sub}
-              </span>
-            ))}
-            <span className="text-[11px] text-[#ccc] ml-auto">
-              {allPosts.length} post{allPosts.length !== 1 ? "s" : ""} found
-            </span>
-          </div>
+          <div className="w-2 h-2 bg-[#111] rotate-45 mx-auto -mt-1" />
         </div>
-
-        {/* Posts list */}
-        <div className="flex-1 overflow-y-auto">
-          {allPosts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-center px-6">
-              <div className="w-10 h-10 rounded-full bg-[#f5f5f5] flex items-center justify-center mb-3">
-                <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                  <circle cx="9" cy="9" r="7.5" stroke="#ccc" strokeWidth="1.5" />
-                  <path d="M9 5.5V9.5M9 12V12.01" stroke="#ccc" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-              </div>
-              <p className="text-sm text-[#999]">No post data available yet</p>
-              <p className="text-xs text-[#ccc] mt-1">
-                Post details appear after the next scan cycle
-              </p>
-            </div>
-          ) : (
-            <div className="divide-y divide-[#f0f0f0]">
-              {allPosts.map((post, i) => (
-                <a
-                  key={post.url || i}
-                  href={post.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block px-6 py-4 hover:bg-[#fafafa] transition-colors group"
-                >
-                  <div className="flex items-start gap-3">
-                    {/* Index pill */}
-                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-[#f5f5f5] text-[11px] font-medium text-[#999] flex items-center justify-center mt-0.5">
-                      {i + 1}
-                    </span>
-
-                    <div className="flex-1 min-w-0">
-                      {/* Post title */}
-                      <p className="text-sm text-[#333] leading-snug group-hover:text-[#111] transition-colors">
-                        {post.title}
-                      </p>
-
-                      {/* Meta row */}
-                      <div className="flex items-center gap-2 mt-1.5">
-                        <span className="text-[11px] font-medium text-[#2563eb] bg-[#eff6ff] px-1.5 py-0.5 rounded">
-                          {post.sub}
-                        </span>
-                        {post.time && (
-                          <span className="text-[11px] text-[#ccc]">{postTimeAgo(post.time)} ago</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* External link icon */}
-                    <svg
-                      width="14"
-                      height="14"
-                      viewBox="0 0 14 14"
-                      fill="none"
-                      className="flex-shrink-0 mt-1 text-[#ccc] group-hover:text-[#999] transition-colors"
-                    >
-                      <path
-                        d="M10.5 7.5V11.5H2.5V3.5H6.5M8.5 2H12V5.5M12 2L6.5 7.5"
-                        stroke="currentColor"
-                        strokeWidth="1.2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                  </div>
-                </a>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="flex-shrink-0 px-6 py-3 border-t border-[#f0f0f0] bg-[#fafafa]">
-          <p className="text-[11px] text-[#ccc]">
-            Sources: {ticker.sources?.join(", ") || "RSS feeds"} — Click any post to open on Reddit
-          </p>
-        </div>
-      </div>
-    </div>
+      )}
+    </span>
   );
 }
 
@@ -220,8 +103,28 @@ function TickerDrawer({
 export default function RedditPage() {
   const { events } = useActivityFeed(500);
   const { watchlist } = useWatchlist();
+  const { openTicker } = useTickerDrawer();
   const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [selectedTicker, setSelectedTicker] = useState<ScannedTicker | null>(null);
+  const [trending, setTrending] = useState<TrendingTicker[]>([]);
+  const [trendingLoaded, setTrendingLoaded] = useState(false);
+
+  const fetchTrending = useCallback(async () => {
+    try {
+      const resp = await fetch("/api/overview");
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (data.top_tickers) {
+        setTrending(data.top_tickers);
+      }
+    } catch { /* */ }
+    setTrendingLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    fetchTrending();
+    const interval = setInterval(fetchTrending, 60_000); // Refresh every minute
+    return () => clearInterval(interval);
+  }, [fetchTrending]);
 
   // Match all scanner events (both old and new event_type conventions)
   const scanEvents = events.filter(
@@ -249,39 +152,8 @@ export default function RedditPage() {
   const discovered = watchlist.filter((w) => w.source !== "base");
   const latestScan = scanResults[0];
 
-  // Parse tickers from latest scan
-  const rawTickers = (latestScan?.metadata?.tickers as unknown) || [];
-  const scannedTickers: ScannedTicker[] = Array.isArray(rawTickers)
-    ? rawTickers.map((t: unknown) =>
-        typeof t === "string"
-          ? { symbol: t, score: 0, sources: [], posts: [] }
-          : (t as ScannedTicker)
-      )
-    : [];
-
-  // Collect tickers from ALL scans for post aggregation
-  const allScanTickers: ScannedTicker[][] = scanResults.map((scan) => {
-    const raw = (scan.metadata?.tickers as unknown) || [];
-    return Array.isArray(raw)
-      ? raw.map((t: unknown) =>
-          typeof t === "string"
-            ? { symbol: t, score: 0, sources: [], posts: [] }
-            : (t as ScannedTicker)
-        )
-      : [];
-  });
-
   return (
     <div className="space-y-6">
-      {/* Ticker detail drawer */}
-      {selectedTicker && (
-        <TickerDrawer
-          ticker={selectedTicker}
-          allScans={allScanTickers}
-          onClose={() => setSelectedTicker(null)}
-        />
-      )}
-
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold text-[#111]">Reddit Scanner</h2>
@@ -299,7 +171,7 @@ export default function RedditPage() {
       <div className="grid grid-cols-4 gap-4">
         {[
           { label: "Scans", value: scanResults.length, sub: "RSS + ApeWisdom" },
-          { label: "Tickers Found", value: scannedTickers.length || Number(latestScan?.metadata?.count) || "—", sub: "latest scan" },
+          { label: "Trending", value: trending.length || "—", sub: "live ApeWisdom" },
           { label: "AI Evaluated", value: aiEvals.length, sub: "Gemini calls" },
           { label: "Discovered", value: discovered.length, sub: "on watchlist" },
         ].map((item) => (
@@ -312,52 +184,54 @@ export default function RedditPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Trending tickers — clickable */}
+        {/* Trending tickers — live ApeWisdom */}
         <div className="rounded-lg border border-[#e5e5e5]">
           <div className="px-5 py-3 border-b border-[#f0f0f0] flex items-center justify-between bg-[#fafafa]">
-            <span className="text-xs font-medium text-[#999] uppercase tracking-wide">Trending Tickers</span>
-            <span className="text-xs text-[#ccc]">{latestScan ? timeAgo(latestScan.created_at) : "—"}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-[#999] uppercase tracking-wide">Trending Tickers</span>
+              <InfoTooltip text="Live trending tickers from ApeWisdom — aggregated Reddit mentions and upvotes across all stock subreddits. Rank change shows 24h momentum." />
+            </div>
+            <span className="text-[10px] text-[#bbb]">via ApeWisdom &bull; live</span>
           </div>
           <div className="max-h-[400px] overflow-y-auto">
-            {scanResults.length === 0 ? (
-              <div className="text-sm text-[#ccc] text-center py-12">Awaiting first Reddit scan...</div>
-            ) : scannedTickers.length > 0 ? (
+            {!trendingLoaded ? (
+              <div className="text-sm text-[#ccc] text-center py-12">Loading...</div>
+            ) : trending.length === 0 ? (
+              <div className="text-sm text-[#ccc] text-center py-12">No trending data available</div>
+            ) : (
               <div className="divide-y divide-[#f0f0f0]">
-                {scannedTickers.map((t, i) => {
-                  const postCount = t.posts?.length || 0;
+                {trending.map((t) => {
+                  const rc = t.rank_change ?? 0;
                   return (
                     <button
                       key={t.symbol}
-                      onClick={() => setSelectedTicker(t)}
+                      onClick={() => openTicker(t.symbol)}
                       className="w-full flex items-center justify-between px-5 py-2.5 hover:bg-[#f8f8f8] transition-all group text-left"
                     >
                       <div className="flex items-center gap-3">
-                        <span className="text-xs text-[#ccc] w-5 text-right tabular-nums">{i + 1}</span>
+                        <span className="text-xs text-[#ccc] w-5 text-right tabular-nums">#{t.rank}</span>
                         <span className="text-sm font-bold text-[#111] group-hover:text-[#000]">{t.symbol}</span>
+                        {t.name && <span className="text-xs text-[#999] max-w-[120px] truncate">{t.name}</span>}
                         <div className="flex gap-1">
                           {(t.sources || []).map((s) => (
                             <span key={s} className="text-[11px] px-1.5 py-0.5 rounded bg-[#f5f5f5] text-[#999]">{s}</span>
                           ))}
                         </div>
-                        {postCount > 0 && (
-                          <span className="text-[11px] text-[#2563eb] opacity-0 group-hover:opacity-100 transition-opacity">
-                            {postCount} post{postCount !== 1 ? "s" : ""} →
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="text-right">
+                          <div className="text-xs font-semibold text-[#333] tabular-nums">{t.mentions} mentions</div>
+                          <div className="text-[10px] text-[#999] tabular-nums">{t.upvotes?.toLocaleString()} upvotes</div>
+                        </div>
+                        {rc !== 0 && (
+                          <span className={`text-xs font-bold tabular-nums ${rc > 0 ? "text-[#16a34a]" : "text-[#dc2626]"}`}>
+                            {rc > 0 ? `▲${rc}` : `▼${Math.abs(rc)}`}
                           </span>
                         )}
                       </div>
-                      <span className="text-sm text-[#555] tabular-nums">{t.score}</span>
                     </button>
                   );
                 })}
-              </div>
-            ) : (
-              <div className="p-5">
-                <div className="text-sm text-[#555]">{latestScan?.title}</div>
-                {latestScan?.detail && (
-                  <div className="text-xs text-[#999] leading-relaxed mt-2 whitespace-pre-wrap bg-[#f8f8f8] border border-[#e5e5e5] rounded-md p-3 max-h-[300px] overflow-y-auto">
-                    {latestScan.detail}
-                  </div>
-                )}
               </div>
             )}
           </div>
@@ -366,7 +240,10 @@ export default function RedditPage() {
         {/* Discovered stocks */}
         <div className="rounded-lg border border-[#e5e5e5]">
           <div className="px-5 py-3 border-b border-[#f0f0f0] flex items-center justify-between bg-[#fafafa]">
-            <span className="text-xs font-medium text-[#999] uppercase tracking-wide">Added to Watchlist</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium text-[#999] uppercase tracking-wide">Added to Watchlist</span>
+              <InfoTooltip text="Stocks that passed AI evaluation. Score combines Reddit momentum + news sentiment (1.5x weight). AI filters for liquidity, catalysts, and day-trading suitability." />
+            </div>
             <span className="text-xs text-[#ccc]">{discovered.length} stocks</span>
           </div>
           <div className="max-h-[400px] overflow-y-auto">
@@ -387,7 +264,7 @@ export default function RedditPage() {
                           {w.source === "ai_approved" ? "AI Approved" : "Score"}
                         </span>
                       </div>
-                      <span className="text-sm text-[#555] tabular-nums">{w.score.toFixed(1)}</span>
+                      <ScoreBadge score={w.score} />
                     </div>
                     {w.reason && <p className="text-xs text-[#999] mt-1">{w.reason}</p>}
                     {w.discovery_sources && w.discovery_sources.length > 0 && (

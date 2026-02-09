@@ -272,3 +272,91 @@ export function useActivityFeed(limit = 100) {
 
   return { events, loading };
 }
+
+// ── Error Log ────────────────────────────────────────────────
+
+export function useErrorLog(limit = 200) {
+  const [errors, setErrors] = useState<ActivityEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = useCallback(async () => {
+    const { data } = await supabase
+      .from("activity_log")
+      .select("*")
+      .eq("level", "error")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (data) setErrors(data);
+    setLoading(false);
+  }, [limit]);
+
+  useEffect(() => {
+    fetchData();
+
+    const channel = supabase
+      .channel("error_log")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "activity_log" },
+        (payload) => {
+          const row = payload.new as ActivityEvent;
+          if (row.level === "error") {
+            setErrors((prev) => [row, ...prev].slice(0, limit));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchData, limit]);
+
+  return { errors, loading };
+}
+
+// ── Declined Trades (AI skip decisions + rejected candidates) ─
+
+export function useDeclinedTrades(limit = 200) {
+  const [declined, setDeclined] = useState<ActivityEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchData = useCallback(async () => {
+    // Fetch trade_decision skips and ai_response with rejections
+    const { data } = await supabase
+      .from("activity_log")
+      .select("*")
+      .or("event_type.eq.trade_decision,and(event_type.eq.ai_response,agent.eq.analyst)")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (data) setDeclined(data);
+    setLoading(false);
+  }, [limit]);
+
+  useEffect(() => {
+    fetchData();
+
+    const channel = supabase
+      .channel("declined_trades")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "activity_log" },
+        (payload) => {
+          const row = payload.new as ActivityEvent;
+          if (
+            row.event_type === "trade_decision" ||
+            (row.event_type === "ai_response" && row.agent === "analyst")
+          ) {
+            setDeclined((prev) => [row, ...prev].slice(0, limit));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [fetchData, limit]);
+
+  return { declined, loading };
+}

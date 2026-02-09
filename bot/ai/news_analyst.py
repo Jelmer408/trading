@@ -23,6 +23,12 @@ For each significant item:
 - Rate urgency for day trading (high/medium/low)
 - Give a 1-sentence actionable insight
 
+IMPORTANT: Also identify stocks that should be ADDED TO THE WATCHLIST based on breaking catalysts.
+A stock deserves watchlist consideration if it has:
+- A major earnings beat/miss, FDA approval, M&A news, contract win, or similar catalyst
+- High urgency (likely to move significantly at market open or during the session)
+- Sufficient liquidity (well-known stocks, not penny stocks)
+
 Respond with valid JSON:
 {
     "market_mood": "bullish" | "bearish" | "mixed" | "neutral",
@@ -35,8 +41,19 @@ Respond with valid JSON:
             "headline": "Original headline",
             "insight": "Actionable trading insight"
         }
+    ],
+    "watchlist_candidates": [
+        {
+            "symbol": "NVDA",
+            "reason": "Earnings beat by 20%, raised guidance, likely gap up at open",
+            "catalyst": "earnings",
+            "sentiment": "bullish",
+            "priority": 1
+        }
     ]
-}"""
+}
+
+Only include watchlist_candidates for stocks with STRONG, clear catalysts. An empty array is fine if nothing stands out."""
 
 
 async def analyze_news_batch(
@@ -121,6 +138,12 @@ async def analyze_news_batch(
                 analysis=alert.get("insight", ""),
                 sentiment=alert.get("sentiment", "neutral"),
             )
+
+        # Log watchlist candidates from news
+        wl_candidates = result.get("watchlist_candidates", [])
+        if wl_candidates:
+            syms = [c.get("symbol", "?") for c in wl_candidates]
+            log.info(f"News AI suggests watchlist adds: {', '.join(syms)}")
 
         log.info(
             f"News analysis complete: {result.get('market_mood')} mood, "

@@ -102,35 +102,42 @@ def _build_combined_signal(
         strength += 0.1
         confirmations.append("volume_confirmed")
 
-    # RSI confirmation
+    # Momentum confirmation (RSI + MACD + EMA grouped as one signal)
+    # These indicators are highly correlated -- count them as a single
+    # "momentum" factor instead of triple-counting the same information.
     rsi = indicators.get("rsi", {})
-    rsi_signal = rsi.get("signal", "neutral")
-    if direction == "long" and rsi_signal == "oversold":
-        strength += 0.1
-        confirmations.append("rsi_oversold")
-    elif direction == "short" and rsi_signal == "overbought":
-        strength += 0.1
-        confirmations.append("rsi_overbought")
-
-    # MACD confirmation
     macd = indicators.get("macd", {})
-    macd_signal = macd.get("signal", "neutral")
-    if direction == "long" and macd_signal == "bullish":
-        strength += 0.05
-        confirmations.append("macd_bullish")
-    elif direction == "short" and macd_signal == "bearish":
-        strength += 0.05
-        confirmations.append("macd_bearish")
-
-    # EMA crossover confirmation
     ema = indicators.get("ema_cross", {})
+
+    momentum_votes = 0
+    momentum_details = []
+
+    rsi_signal = rsi.get("signal", "neutral")
+    if (direction == "long" and rsi_signal == "oversold") or \
+       (direction == "short" and rsi_signal == "overbought"):
+        momentum_votes += 1
+        momentum_details.append(f"rsi_{rsi_signal}")
+
+    macd_signal = macd.get("signal", "neutral")
+    if (direction == "long" and macd_signal == "bullish") or \
+       (direction == "short" and macd_signal == "bearish"):
+        momentum_votes += 1
+        momentum_details.append(f"macd_{macd_signal}")
+
     ema_signal = ema.get("signal", "neutral")
-    if direction == "long" and ema_signal == "bullish":
+    if (direction == "long" and ema_signal == "bullish") or \
+       (direction == "short" and ema_signal == "bearish"):
+        momentum_votes += 1
+        momentum_details.append(f"ema_{ema_signal}")
+
+    # Award a single momentum bonus based on consensus (max +0.15)
+    if momentum_votes >= 2:
+        strength += 0.15
+        confirmations.append("momentum_confirmed")
+        confirmations.extend(momentum_details)
+    elif momentum_votes == 1:
         strength += 0.05
-        confirmations.append("ema_bullish")
-    elif direction == "short" and ema_signal == "bearish":
-        strength += 0.05
-        confirmations.append("ema_bearish")
+        confirmations.extend(momentum_details)
 
     # Breakout bonus
     breakouts = price_action.get("breakouts", [])

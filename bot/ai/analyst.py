@@ -53,7 +53,7 @@ async def _call_ai(prompt: str, system: str) -> str:
 
 # ── System prompts ───────────────────────────────────────────
 
-TRADE_ANALYST_SYSTEM = """You are an expert quantitative day-trading analyst. You analyze candlestick patterns, technical indicators, price action, and market data to make trading decisions.
+TRADE_ANALYST_SYSTEM = """You are an expert quantitative day-trading analyst evaluating 5-minute candle signals for US equities.
 
 Your responses must be valid JSON with this exact structure:
 {
@@ -67,14 +67,18 @@ Your responses must be valid JSON with this exact structure:
     "key_factors": ["factor1", "factor2"]
 }
 
+Decision framework (prioritized):
+1. PATTERN + TREND is the primary signal. A strong candlestick pattern aligned with the trend is enough to trade.
+2. MOMENTUM (RSI/MACD/EMA) is a secondary confirmation, not a requirement. These indicators are correlated -- don't penalize if only 1-2 of 3 agree.
+3. VOLUME is context, not a gate. Low relative volume on a 5-min bar is common and does NOT invalidate the pattern. Only flag volume if it directly contradicts the signal (e.g., spike in the opposite direction).
+4. Risk/reward ratio should be at least 1.5:1, ideally 2:1+.
+
 Rules:
-- Only recommend "enter_long" or "enter_short" if confidence >= 0.6
-- Always explain the key factors driving the decision
-- Consider risk/reward ratio (minimum 2:1 preferred)
-- Account for current trend direction
-- Factor in volume confirmation
-- If data is insufficient or conflicting, recommend "skip"
-- Be conservative -- missing a trade is better than a bad trade"""
+- Recommend "enter_long" or "enter_short" if confidence >= 0.6
+- DO NOT skip just because one indicator disagrees -- no setup is perfect
+- DO skip if the pattern is counter-trend with no momentum support, or if risk/reward is poor
+- Always set stop_loss and take_profit based on support/resistance and ATR
+- Explain 2-3 key factors for your decision, not a laundry list"""
 
 
 JOURNAL_SYSTEM = """You are a trading journal writer. Given trade details, write a concise
@@ -91,6 +95,7 @@ async def evaluate_signal(
     indicators: dict[str, Any],
     pluse_data: dict[str, str | None] | None = None,
     current_price: float | None = None,
+    fundamentals: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """
     Have the AI evaluate a trading signal and decide whether to trade.
@@ -132,9 +137,15 @@ async def evaluate_signal(
             if value:
                 sections.append(f"\n**{key}**: {value}")
 
+    if fundamentals:
+        from bot.data.fundamentals import format_for_ai
+        fund_str = format_for_ai(fundamentals)
+        if fund_str and "No fundamental" not in fund_str:
+            sections.append(f"\n### Fundamentals\n{fund_str}")
+
     sections.append(
         "\n### Decision Required\n"
-        "Based on all the above data, should we enter a trade? "
+        "Based on all the above data (technicals + fundamentals), should we enter a trade? "
         "Respond with valid JSON only."
     )
 
@@ -171,18 +182,32 @@ async def evaluate_signal(
 
     except json.JSONDecodeError as e:
         log.error(f"AI response not valid JSON: {e}")
+        reasoning = f"AI response parsing failed: {e}"
+        activity.trade_decision(
+            symbol=symbol,
+            decision="skip",
+            confidence=0.0,
+            reasoning=reasoning,
+        )
         return {
             "decision": "skip",
             "confidence": 0.0,
-            "reasoning": f"AI response parsing failed: {e}",
+            "reasoning": reasoning,
             "key_factors": ["parse_error"],
         }
     except Exception as e:
         log.error(f"AI evaluation failed: {e}")
+        reasoning = f"AI error: {e}"
+        activity.trade_decision(
+            symbol=symbol,
+            decision="skip",
+            confidence=0.0,
+            reasoning=reasoning,
+        )
         return {
             "decision": "skip",
             "confidence": 0.0,
-            "reasoning": f"AI error: {e}",
+            "reasoning": reasoning,
             "key_factors": ["error"],
         }
 

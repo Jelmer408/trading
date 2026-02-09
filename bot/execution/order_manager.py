@@ -1,5 +1,5 @@
 """
-Order execution: places limit orders and tracks fills.
+Order execution: places market orders for immediate fills.
 """
 
 from typing import Any
@@ -20,13 +20,13 @@ async def enter_position(
     ai_reasoning: str | None = None,
 ) -> dict[str, Any] | None:
     """
-    Enter a new position via limit order.
+    Enter a new position via market order for immediate fill.
 
     Args:
         symbol: Ticker.
         direction: 'long' or 'short'.
         quantity: Number of shares.
-        entry_price: Limit price.
+        entry_price: Price at time of signal (for record-keeping).
         stop_loss: Stop-loss price.
         take_profit: Take-profit price.
         signal_id: Reference to the signal that triggered this.
@@ -38,11 +38,12 @@ async def enter_position(
     side = "buy" if direction == "long" else "sell"
 
     try:
-        order = alpaca.place_limit_order(
+        order = alpaca.place_bracket_order(
             symbol=symbol,
             side=side,
             qty=quantity,
-            limit_price=entry_price,
+            stop_loss=stop_loss,
+            take_profit=take_profit,
         )
 
         # Record in database

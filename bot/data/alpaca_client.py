@@ -146,6 +146,119 @@ def place_market_order(symbol: str, side: str, qty: float) -> dict:
     }
 
 
+def place_bracket_order(
+    symbol: str,
+    side: str,
+    qty: float,
+    stop_loss: float,
+    take_profit: float,
+) -> dict:
+    """
+    Place a market entry with server-side stop-loss and take-profit.
+
+    Alpaca handles the SL/TP as OCO (one-cancels-other) orders,
+    so exits happen instantly without polling.
+    """
+    from alpaca.trading.requests import (
+        MarketOrderRequest as _MOR,
+        TakeProfitRequest,
+        StopLossRequest,
+    )
+
+    client = get_trading_client()
+    order_side = OrderSide.BUY if side == "buy" else OrderSide.SELL
+
+    request = _MOR(
+        symbol=symbol,
+        qty=qty,
+        side=order_side,
+        time_in_force=TimeInForce.GTC,
+        order_class="bracket",
+        take_profit=TakeProfitRequest(limit_price=round(take_profit, 2)),
+        stop_loss=StopLossRequest(stop_price=round(stop_loss, 2)),
+    )
+    order = client.submit_order(request)
+    log.info(
+        f"Bracket order placed: {side} {qty} {symbol} "
+        f"SL=${stop_loss:.2f} TP=${take_profit:.2f}"
+    )
+    return {
+        "order_id": str(order.id),
+        "symbol": order.symbol,
+        "side": side,
+        "qty": float(order.qty),
+        "status": order.status.value,
+    }
+
+
+def get_open_orders() -> list[dict]:
+    """Get all open/pending orders from Alpaca."""
+    from alpaca.trading.requests import GetOrdersRequest
+    from alpaca.trading.enums import QueryOrderStatus
+
+    client = get_trading_client()
+    request = GetOrdersRequest(status=QueryOrderStatus.OPEN)
+    orders = client.get_orders(request)
+    return [
+        {
+            "order_id": str(o.id),
+            "symbol": o.symbol,
+            "side": o.side.value,
+            "qty": float(o.qty) if o.qty else 0,
+            "order_type": o.type.value if o.type else None,
+            "limit_price": float(o.limit_price) if o.limit_price else None,
+            "stop_price": float(o.stop_price) if o.stop_price else None,
+            "status": o.status.value,
+            "order_class": o.order_class.value if o.order_class else None,
+        }
+        for o in orders
+    ]
+
+
+def place_oco_exit(
+    symbol: str,
+    qty: float,
+    side: str,
+    stop_loss: float,
+    take_profit: float,
+) -> dict:
+    """
+    Place an OCO (one-cancels-other) order to protect an existing position.
+
+    Used to re-establish SL/TP for positions whose bracket child orders expired.
+    The exit side is the opposite of the position side.
+    """
+    from alpaca.trading.requests import (
+        LimitOrderRequest,
+        TakeProfitRequest,
+        StopLossRequest,
+    )
+
+    client = get_trading_client()
+    # Exit side is opposite of position side
+    exit_side = OrderSide.SELL if side == "buy" else OrderSide.BUY
+
+    request = LimitOrderRequest(
+        symbol=symbol,
+        qty=qty,
+        side=exit_side,
+        time_in_force=TimeInForce.GTC,
+        order_class="oco",
+        take_profit=TakeProfitRequest(limit_price=round(take_profit, 2)),
+        stop_loss=StopLossRequest(stop_price=round(stop_loss, 2)),
+    )
+    order = client.submit_order(request)
+    log.info(
+        f"OCO exit placed: {symbol} {qty} shares "
+        f"SL=${stop_loss:.2f} TP=${take_profit:.2f}"
+    )
+    return {
+        "order_id": str(order.id),
+        "symbol": order.symbol,
+        "status": order.status.value,
+    }
+
+
 def cancel_order(order_id: str) -> None:
     """Cancel an open order."""
     client = get_trading_client()

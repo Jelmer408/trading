@@ -1,10 +1,12 @@
 "use client";
 
 import { useNews, useActivityFeed } from "@/hooks/useRealtimeData";
+import { useTickerDrawer } from "@/context/TickerDrawerContext";
 
 export default function NewsPage() {
   const { news } = useNews(50);
   const { events } = useActivityFeed(200);
+  const { openTicker } = useTickerDrawer();
 
   const newsEvents = events.filter(
     (e) => e.agent === "news_ai" || e.event_type === "news_analysis" || e.event_type === "news_cycle"
@@ -64,7 +66,7 @@ export default function NewsPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         {alert.symbol && (
-                          <span className="text-xs px-2 py-0.5 rounded-md bg-[#f0f0f0] text-[#111] font-bold">{alert.symbol}</span>
+                          <button onClick={() => openTicker(alert.symbol!)} className="text-xs px-2 py-0.5 rounded-md bg-[#f0f0f0] text-[#111] font-bold hover:bg-[#e5e5e5] transition-colors cursor-pointer">{alert.symbol}</button>
                         )}
                         {sentiment && (
                           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
@@ -105,7 +107,7 @@ export default function NewsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       {item.symbol && (
-                        <span className="text-xs px-2 py-0.5 rounded-md bg-[#f0f0f0] text-[#111] font-bold">{item.symbol}</span>
+                        <button onClick={() => openTicker(item.symbol!)} className="text-xs px-2 py-0.5 rounded-md bg-[#f0f0f0] text-[#111] font-bold hover:bg-[#e5e5e5] transition-colors cursor-pointer">{item.symbol}</button>
                       )}
                       {item.sentiment && (
                         <span className={`text-xs font-medium ${

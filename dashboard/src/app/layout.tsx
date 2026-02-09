@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import TopNav from "@/components/layout/TopNav";
+import { TickerDrawerProvider } from "@/context/TickerDrawerContext";
+import TickerDetailDrawer from "@/components/TickerDetailDrawer";
 
 const mono = JetBrains_Mono({
   variable: "--font-mono",
@@ -22,10 +24,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={mono.variable}>
-        <TopNav />
-        <main className="pt-[96px] px-5 pb-10 max-w-[1200px] mx-auto">
-          {children}
-        </main>
+        <TickerDrawerProvider>
+          <TopNav />
+          <main className="pt-[96px] px-5 pb-10 max-w-[1200px] mx-auto">
+            {children}
+          </main>
+          <TickerDetailDrawer />
+        </TickerDrawerProvider>
       </body>
     </html>
   );

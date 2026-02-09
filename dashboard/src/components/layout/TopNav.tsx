@@ -10,6 +10,7 @@ const navItems = [
   { href: "/trades", label: "Trades" },
   { href: "/reddit", label: "Reddit" },
   { href: "/news", label: "News" },
+  { href: "/test", label: "Test" },
   { href: "/performance", label: "Metrics" },
   { href: "/settings", label: "System" },
 ];

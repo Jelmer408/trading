@@ -31,6 +31,19 @@ class CandleStrategy:
     def __init__(self, risk_manager: RiskManager):
         self.risk = risk_manager
 
+    @staticmethod
+    def _is_market_hours() -> bool:
+        """Check if we're in regular US market hours (9:30 AM - 4:00 PM ET)."""
+        from datetime import datetime, timezone, timedelta
+        et = timezone(timedelta(hours=-5))
+        now = datetime.now(et)
+        # Weekday check (Mon=0 .. Fri=4)
+        if now.weekday() > 4:
+            return False
+        market_open = now.replace(hour=9, minute=30, second=0, microsecond=0)
+        market_close = now.replace(hour=16, minute=0, second=0, microsecond=0)
+        return market_open <= now <= market_close
+
     async def on_bar(self, bar: dict) -> dict[str, Any] | None:
         """
         Process a new bar and potentially enter a trade.
@@ -42,6 +55,16 @@ class CandleStrategy:
             Trade result dict if a trade was entered, else None.
         """
         symbol = bar["symbol"]
+
+        # Skip signal detection outside regular market hours
+        # (pre/post-market volume makes pattern confirmations unreliable)
+        if not self._is_market_hours():
+            return None
+
+        # Skip entirely if max positions reached (no point analyzing)
+        can_trade, reason = self.risk.check_can_trade()
+        if not can_trade:
+            return None
 
         # 1. Get recent candles from Supabase for analysis
         candles = db.get_candles(symbol, config.TIMEFRAME, limit=100)
@@ -88,12 +111,6 @@ class CandleStrategy:
             },
         )
 
-        # 3. Risk check
-        can_trade, reason = self.risk.check_can_trade()
-        if not can_trade:
-            log.info(f"Risk manager blocked trade on {symbol}: {reason}")
-            return None
-
         current_price = bar["close"]
 
         # 4. Fetch PlusE data for AI context
@@ -102,6 +119,14 @@ class CandleStrategy:
             pluse_data = await pluse.get_full_analysis(symbol)
         except Exception as e:
             log.warning(f"PlusE data unavailable for {symbol}: {e}")
+
+        # 4b. Fetch fundamentals for AI context
+        fund_data = None
+        try:
+            from bot.data.fundamentals import get_fundamentals
+            fund_data = await get_fundamentals(symbol)
+        except Exception as e:
+            log.debug(f"Fundamentals unavailable for {symbol}: {e}")
 
         # 5. AI evaluation
         try:
@@ -112,6 +137,7 @@ class CandleStrategy:
                 indicators=analysis["indicators"],
                 pluse_data=pluse_data,
                 current_price=current_price,
+                fundamentals=fund_data,
             )
         except Exception as e:
             log.error(f"AI evaluation failed for {symbol}: {e}")
@@ -119,6 +145,9 @@ class CandleStrategy:
 
         decision = ai_decision.get("decision", "skip")
         confidence = ai_decision.get("confidence", 0)
+
+        # Force-flush activity buffer so skip decisions appear on dashboard immediately
+        await activity.flush()
 
         if decision == "skip" or confidence < 0.6:
             log.info(
@@ -161,12 +190,12 @@ class CandleStrategy:
                 price=current_price,
             )
             # Store news from PlusE if available
-            if pluse_data and pluse_data.get("news_sentiment"):
+            if pluse_data and pluse_data.get("news"):
                 try:
                     db.insert_news({
                         "symbol": symbol,
                         "headline": f"AI Trade Signal: {signal['pattern']}",
-                        "summary": pluse_data["news_sentiment"][:500],
+                        "summary": str(pluse_data["news"])[:500],
                         "sentiment": signal["direction"],
                         "source": "pluse_finance",
                     })

@@ -300,6 +300,34 @@ async def handle_index(request: web.Request) -> web.Response:
     return web.Response(text=html, content_type="text/html")
 
 
+# ── Rescan callback (set by main.py) ─────────────────────────
+
+_rescan_callback = None
+
+def set_rescan_callback(fn):
+    """Register the rescan function from main.py."""
+    global _rescan_callback
+    _rescan_callback = fn
+
+
+async def handle_rescan(request: web.Request) -> web.Response:
+    """Trigger a manual signal rescan for a symbol."""
+    symbol = request.match_info.get("symbol", "").upper()
+    if not symbol:
+        return web.json_response({"error": "Missing symbol"}, status=400, headers=_cors_headers())
+    if not _rescan_callback:
+        return web.json_response({"error": "Rescan not available"}, status=503, headers=_cors_headers())
+
+    import asyncio
+    try:
+        result = await asyncio.wait_for(_rescan_callback(symbol), timeout=30)
+        return web.json_response({"status": "ok", "symbol": symbol, "result": result}, headers=_cors_headers())
+    except asyncio.TimeoutError:
+        return web.json_response({"error": "Rescan timed out"}, status=504, headers=_cors_headers())
+    except Exception as e:
+        return web.json_response({"error": str(e)}, status=500, headers=_cors_headers())
+
+
 # ── Server startup ───────────────────────────────────────────
 
 async def start_status_server(port: int = 8080) -> None:
@@ -308,7 +336,9 @@ async def start_status_server(port: int = 8080) -> None:
     app.router.add_get("/", handle_index)
     app.router.add_get("/health", handle_health)
     app.router.add_get("/api/status", handle_api_status)
+    app.router.add_get("/api/rescan/{symbol}", handle_rescan)
     app.router.add_route("OPTIONS", "/api/status", handle_options)
+    app.router.add_route("OPTIONS", "/api/rescan/{symbol}", handle_options)
     app.router.add_route("OPTIONS", "/health", handle_options)
 
     runner = web.AppRunner(app)

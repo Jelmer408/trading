@@ -23,6 +23,12 @@ class Config:
     ANTHROPIC_API_KEY: str = os.getenv("ANTHROPIC_API_KEY", "")
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
 
+    # Massive.com (Polygon.io) for fundamentals
+    MASSIVE_API_KEY: str = os.getenv("MASSIVE_API_KEY", "")
+
+    # Alpha Vantage (free tier for financial ratios)
+    ALPHA_VANTAGE_API_KEY: str = os.getenv("ALPHA_VANTAGE_API_KEY", "")
+
     # Trading
     WATCHLIST: list[str] = os.getenv("WATCHLIST", "AAPL,MSFT,NVDA,TSLA,SPY").split(",")
     TIMEFRAME: str = os.getenv("TIMEFRAME", "5Min")
