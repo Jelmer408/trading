@@ -86,6 +86,10 @@ async def exit_position(symbol: str, reason: str = "signal") -> dict[str, Any] |
     """
     Close an existing position at market.
 
+    IMPORTANT: Must cancel existing bracket/OCO orders first to free shares,
+    otherwise Alpaca will reject with "insufficient qty available" because
+    the shares are held by pending exit orders.
+
     Args:
         symbol: Ticker to close.
         reason: Why we're closing (signal, stop_loss, take_profit, etc.).
@@ -93,7 +97,17 @@ async def exit_position(symbol: str, reason: str = "signal") -> dict[str, Any] |
     Returns:
         Close order dict or None.
     """
+    import asyncio
+
     try:
+        # Step 1: Cancel all open orders for this symbol to free held shares
+        cancelled = alpaca.cancel_open_orders_for_symbol(symbol)
+        if cancelled > 0:
+            log.info(f"Cancelled {cancelled} orders for {symbol} before exit")
+            # Brief pause for cancellations to settle
+            await asyncio.sleep(0.5)
+
+        # Step 2: Now close the position
         result = alpaca.close_position(symbol)
         log.info(f"EXIT: {symbol} (reason: {reason}, order={result['order_id']})")
         return result
